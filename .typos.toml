@@ -1,0 +1,4 @@
+[default.extend-words]
+vertx = "vertx"
+verticle = "verticle"
+verticles = "verticles"
