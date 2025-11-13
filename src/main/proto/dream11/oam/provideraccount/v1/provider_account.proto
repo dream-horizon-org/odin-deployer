@@ -1,0 +1,40 @@
+syntax = "proto3";
+package dream11.oam.provideraccount.v1;
+
+import "dream11/oam/dto/v1/provider_account.proto";
+
+option java_multiple_files = true;
+option java_package = "com.dream11.odin.grpc.provideraccount.v1";
+
+service ProviderAccountService {
+  rpc GetProviderAccount(GetProviderAccountRequest) returns (GetProviderAccountResponse) {}
+  rpc GetProviderAccounts(GetProviderAccountsRequest) returns (GetProviderAccountsResponse) {}
+  rpc GetAllProviderAccounts(GetAllProviderAccountsRequest) returns (GetAllProviderAccountsResponse) {}
+}
+
+message GetProviderAccountRequest {
+  string name = 1;
+  bool fetch_linked_account_details = 2;
+}
+
+message GetProviderAccountResponse {
+  dream11.oam.dto.v1.ProviderAccount account = 1;
+  repeated dream11.oam.dto.v1.ProviderAccount linked_accounts = 2;
+}
+
+message GetAllProviderAccountsRequest {
+  bool fetch_linked_account_details = 1;
+}
+
+message GetAllProviderAccountsResponse {
+  repeated GetProviderAccountResponse accounts = 1;
+}
+
+message GetProviderAccountsRequest {
+  repeated string name = 1;
+  bool fetch_linked_account_details = 2;
+}
+
+message GetProviderAccountsResponse {
+  repeated GetProviderAccountResponse accounts = 1;
+}

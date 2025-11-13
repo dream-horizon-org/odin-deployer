@@ -1,0 +1,730 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>com.dream11</groupId>
+  <artifactId>odin-deployer</artifactId>
+  <version>0.0.1-SNAPSHOT</version>
+  <packaging>jar</packaging>
+
+  <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <app.release.artifact>target/odin-deployer</app.release.artifact>
+    <main.verticle>com.dream11.odin.verticle.MainVerticle</main.verticle>
+    <launcher.class>com.dream11.odin.MainLauncher</launcher.class>
+
+    <resource.directory>src/main/resources</resource.directory>
+    <vertx.version>4.4.4</vertx.version>
+    <reactive.grpc.version>1.2.4</reactive.grpc.version>
+    <vertx-grpc-extension.version>0.0.1</vertx-grpc-extension.version>
+    <lombok.version>1.18.34</lombok.version>
+    <netty.version>4.1.91.Final</netty.version>
+    <slf4j.version>2.0.17</slf4j.version>
+    <logback.version>1.5.18</logback.version>
+    <google-guice.version>5.1.0</google-guice.version>
+    <jackson.version>2.17.2</jackson.version>
+    <reflections.version>0.10.2</reflections.version>
+    <protoc.version>3.20.0</protoc.version>
+    <protoc-gen-grpc-java.version>1.50.2</protoc-gen-grpc-java.version>
+    <protoc-gen-validate.version>0.9.1</protoc-gen-validate.version>
+    <message-kit.version>0.0.2</message-kit.version>
+    <commons-text.version>1.10.0</commons-text.version>
+    <commons-codec.version>1.18.0</commons-codec.version>
+    <freemarker.version>2.3.32</freemarker.version>
+    <commons-io.version>2.14.0</commons-io.version>
+    <commons-compress.version>1.26.0</commons-compress.version>
+    <hibernate-validator.version>8.0.0.Final</hibernate-validator.version>
+    <jakarta.el.version>4.0.2</jakarta.el.version>
+    <vertx-completable-future.version>0.1.2</vertx-completable-future.version>
+    <com.google.protobuf.version>3.21.5</com.google.protobuf.version>
+    <jjwt.version>0.13.0</jjwt.version>
+    <vertx-rest.version>1.1.0</vertx-rest.version>
+    <rxjava3-bridge.version>3.0.2</rxjava3-bridge.version>
+    <jakarta.xml.bind.version>4.0.2</jakarta.xml.bind.version>
+
+    <!--  Tests  -->
+    <mockito.version>5.3.1</mockito.version>
+    <grpc-testing.version>1.50.2</grpc-testing.version>
+    <mysql.jdbc.connection.version>8.2.0</mysql.jdbc.connection.version>
+    <testcontainers.version>1.21.0</testcontainers.version>
+    <wiremock.version>2.35.0</wiremock.version>
+    <assertj.version>3.23.1</assertj.version>
+    <junit-jupiter.version>5.7.0</junit-jupiter.version>
+    <junit.version>4.13.2</junit.version>
+    <awaitility.version>4.2.0</awaitility.version>
+    <rest-assured.version>5.5.0</rest-assured.version>
+    <wiremock.version>3.9.1</wiremock.version>
+    <liquibase.version>5.0.1</liquibase.version>
+    <apache.commons.version>3.19.0</apache.commons.version>
+
+    <!-- Plugins    -->
+    <maven.compile.version>17</maven.compile.version>
+    <maven.compile.source>17</maven.compile.source>
+    <maven.compile.target>17</maven.compile.target>
+    <maven.compiler.plugin.version>3.8.1</maven.compiler.plugin.version>
+    <maven.clean.plugin.version>3.1.0</maven.clean.plugin.version>
+    <maven.source.plugin.version>3.2.1</maven.source.plugin.version>
+    <maven.lombok.plugin.version>1.18.20.0</maven.lombok.plugin.version>
+    <maven.shade.plugin.version>3.2.4</maven.shade.plugin.version>
+    <maven.surefire.plugin.version>3.0.0-M5</maven.surefire.plugin.version>
+    <maven.failsafe.plugin.version>3.0.0-M5</maven.failsafe.plugin.version>
+    <maven.jacoco.plugin.version>0.8.8</maven.jacoco.plugin.version>
+    <maven.resources.plugin.version>3.3.0</maven.resources.plugin.version>
+    <maven.protobuf.plugin.version>0.6.1</maven.protobuf.plugin.version>
+    <maven.os.plugin.version>1.7.1</maven.os.plugin.version>
+  </properties>
+
+  <dependencies>
+    <dependency>
+      <groupId>org.projectlombok</groupId>
+      <artifactId>lombok</artifactId>
+      <version>${lombok.version}</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <!-- Vertx -->
+    <dependency>
+      <groupId>com.dream11</groupId>
+      <artifactId>vertx-grpc-extension</artifactId>
+      <version>${vertx-grpc-extension.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>io.vertx</groupId>
+      <artifactId>vertx-grpc-client</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>io.vertx</groupId>
+      <artifactId>vertx-mysql-client</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>com.fasterxml.jackson.datatype</groupId>
+      <artifactId>jackson-datatype-jsr310</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>io.vertx</groupId>
+      <artifactId>vertx-rx-java2-gen</artifactId>
+      <version>${vertx.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>io.vertx</groupId>
+      <artifactId>vertx-config</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>io.vertx</groupId>
+      <artifactId>vertx-json-schema</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>io.vertx</groupId>
+      <artifactId>vertx-config-hocon</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>io.vertx</groupId>
+      <artifactId>vertx-web-client</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.freemarker</groupId>
+      <artifactId>freemarker</artifactId>
+      <version>${freemarker.version}</version>
+    </dependency>
+
+    <!-- Reactive grpc -->
+    <dependency>
+      <groupId>com.salesforce.servicelibs</groupId>
+      <artifactId>rxgrpc-stub</artifactId>
+      <version>${reactive.grpc.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.salesforce.servicelibs</groupId>
+      <artifactId>reactor-grpc-stub</artifactId>
+      <version>${reactive.grpc.version}</version>
+    </dependency>
+
+    <!-- Google guice -->
+    <dependency>
+      <groupId>com.google.inject</groupId>
+      <artifactId>guice</artifactId>
+      <version>${google-guice.version}</version>
+    </dependency>
+
+    <!-- https://mvnrepository.com/artifact/com.fasterxml.jackson.core/jackson-core -->
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-core</artifactId>
+      <version>${jackson.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-databind</artifactId>
+      <version>${jackson.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-annotations</artifactId>
+      <version>${jackson.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.reflections</groupId>
+      <artifactId>reflections</artifactId>
+      <version>${reflections.version}</version>
+    </dependency>
+
+    <!-- Enable Native Transport
+      https://vertx.io/docs/vertx-core/java/#_native_transports
+      https://github.com/netty/netty/wiki/Native-transports
+    -->
+    <dependency>
+      <groupId>io.netty</groupId>
+      <artifactId>netty-transport-native-kqueue</artifactId>
+      <version>${netty.version}</version>
+      <classifier>osx-x86_64</classifier>
+    </dependency>
+
+    <dependency>
+      <groupId>io.netty</groupId>
+      <artifactId>netty-transport-native-epoll</artifactId>
+      <version>${netty.version}</version>
+      <classifier>linux-x86_64</classifier>
+    </dependency>
+
+    <!-- Logging -->
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
+      <version>${slf4j.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>ch.qos.logback</groupId>
+      <artifactId>logback-core</artifactId>
+      <version>${logback.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>ch.qos.logback</groupId>
+      <artifactId>logback-classic</artifactId>
+      <version>${logback.version}</version>
+    </dependency>
+
+    <!--  Proto gen validate   -->
+    <dependency>
+      <groupId>build.buf.protoc-gen-validate</groupId>
+      <artifactId>pgv-java-stub</artifactId>
+      <version>${protoc-gen-validate.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>build.buf.protoc-gen-validate</groupId>
+      <artifactId>pgv-java-grpc</artifactId>
+      <version>${protoc-gen-validate.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>com.google.protobuf</groupId>
+      <artifactId>protobuf-java-util</artifactId>
+      <version>${com.google.protobuf.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-text</artifactId>
+      <version>${commons-text.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>commons-codec</groupId>
+      <artifactId>commons-codec</artifactId>
+      <version>${commons-codec.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>com.dream11</groupId>
+      <artifactId>message-kit</artifactId>
+      <version>${message-kit.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>commons-io</groupId>
+      <artifactId>commons-io</artifactId>
+      <version>${commons-io.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-compress</artifactId>
+      <version>${commons-compress.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.hibernate.validator</groupId>
+      <artifactId>hibernate-validator</artifactId>
+      <version>${hibernate-validator.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.glassfish</groupId>
+      <artifactId>jakarta.el</artifactId>
+      <version>${jakarta.el.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>me.escoffier.vertx</groupId>
+      <artifactId>vertx-completable-future</artifactId>
+      <version>${vertx-completable-future.version}</version>
+    </dependency>
+
+
+    <!--   Tests   -->
+    <dependency>
+      <groupId>io.vertx</groupId>
+      <artifactId>vertx-junit5</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <version>${junit-jupiter.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-engine</artifactId>
+      <version>${junit-jupiter.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <version>${junit.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <version>${testcontainers.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>mysql</artifactId>
+      <version>${testcontainers.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.assertj</groupId>
+      <artifactId>assertj-core</artifactId>
+      <version>${assertj.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>io.grpc</groupId>
+      <artifactId>grpc-testing</artifactId>
+      <version>${grpc-testing.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>localstack</artifactId>
+      <version>${testcontainers.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-core</artifactId>
+      <version>${mockito.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>com.mysql</groupId>
+      <artifactId>mysql-connector-j</artifactId>
+      <version>${mysql.jdbc.connection.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-junit-jupiter</artifactId>
+      <version>${mockito.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.awaitility</groupId>
+      <artifactId>awaitility</artifactId>
+      <version>${awaitility.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>io.rest-assured</groupId>
+      <artifactId>rest-assured</artifactId>
+      <version>${rest-assured.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <!-- https://mvnrepository.com/artifact/com.github.tomakehurst/wiremock -->
+    <!-- https://mvnrepository.com/artifact/org.wiremock/wiremock -->
+    <dependency>
+      <groupId>org.wiremock</groupId>
+      <artifactId>wiremock</artifactId>
+      <version>${wiremock.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.liquibase</groupId>
+      <artifactId>liquibase-core</artifactId>
+      <version>${liquibase.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-lang3</artifactId>
+      <version>${apache.commons.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>com.dream11</groupId>
+      <artifactId>vertx-rest</artifactId>
+      <version>${vertx-rest.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>jakarta.xml.bind</groupId>
+      <artifactId>jakarta.xml.bind-api</artifactId>
+      <version>${jakarta.xml.bind.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.github.akarnokd</groupId>
+      <artifactId>rxjava3-bridge</artifactId>
+      <version>${rxjava3-bridge.version}</version>
+    </dependency>
+
+    <!-- JWT -->
+    <dependency>
+      <groupId>io.jsonwebtoken</groupId>
+      <artifactId>jjwt-api</artifactId>
+      <version>${jjwt.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>io.jsonwebtoken</groupId>
+      <artifactId>jjwt-impl</artifactId>
+      <version>${jjwt.version}</version>
+      <scope>runtime</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.jsonwebtoken</groupId>
+      <artifactId>jjwt-jackson</artifactId>
+      <version>${jjwt.version}</version>
+      <scope>runtime</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.rest-assured</groupId>
+      <artifactId>rest-assured</artifactId>
+      <version>${rest-assured.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+  </dependencies>
+
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>io.vertx</groupId>
+        <artifactId>vertx-stack-depchain</artifactId>
+        <version>${vertx.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+
+  <build>
+    <plugins>
+      <plugin>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>${maven.compiler.plugin.version}</version>
+        <configuration>
+          <compilerVersion>${maven.compile.version}</compilerVersion>
+          <source>${maven.compile.source}</source>
+          <target>${maven.compile.target}</target>
+          <encoding>${project.build.sourceEncoding}</encoding>
+          <useIncrementalCompilation>false</useIncrementalCompilation>
+
+          <annotationProcessors combine.children="append">
+            <annotationProcessor>lombok.launch.AnnotationProcessorHider$AnnotationProcessor
+            </annotationProcessor>
+            <annotationProcessor>io.vertx.codegen.CodeGenProcessor</annotationProcessor>
+          </annotationProcessors>
+          <generatedSourcesDirectory>${project.basedir}/src/main/generated</generatedSourcesDirectory>
+          <compilerArgs>
+            <arg>-Acodegen.output=${project.basedir}/src/main</arg>
+          </compilerArgs>
+        </configuration>
+      </plugin>
+
+      <plugin>
+        <artifactId>maven-clean-plugin</artifactId>
+        <version>${maven.clean.plugin.version}</version>
+        <configuration>
+          <filesets>
+            <fileset>
+              <directory>${project.basedir}/src/main/generated</directory>
+            </fileset>
+          </filesets>
+        </configuration>
+      </plugin>
+
+      <plugin>
+        <groupId>org.projectlombok</groupId>
+        <artifactId>lombok-maven-plugin</artifactId>
+        <version>${maven.lombok.plugin.version}</version>
+        <dependencies>
+          <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <version>${lombok.version}</version>
+          </dependency>
+        </dependencies>
+      </plugin>
+
+      <plugin>
+        <artifactId>maven-source-plugin</artifactId>
+        <version>${maven.source.plugin.version}</version>
+        <executions>
+          <execution>
+            <id>attach-sources</id>
+            <goals>
+              <goal>jar</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+
+      <plugin>
+        <artifactId>maven-shade-plugin</artifactId>
+        <version>${maven.shade.plugin.version}</version>
+        <executions>
+          <execution>
+            <phase>package</phase>
+            <goals>
+              <goal>shade</goal>
+            </goals>
+            <configuration>
+              <transformers>
+                <transformer
+                    implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                  <manifestEntries>
+                    <Main-Class>${launcher.class}</Main-Class>
+                    <Main-Verticle>${main.verticle}</Main-Verticle>
+                  </manifestEntries>
+                </transformer>
+                <transformer
+                    implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+              </transformers>
+              <outputFile>
+                ${project.basedir}/${app.release.artifact}/${project.artifactId}-fat.jar
+              </outputFile>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+      <plugin>
+        <groupId>org.xolstice.maven.plugins</groupId>
+        <artifactId>protobuf-maven-plugin</artifactId>
+        <version>${maven.protobuf.plugin.version}</version>
+        <configuration>
+          <protocArtifact>com.google.protobuf:protoc:${protoc.version}:exe:${os.detected.classifier}
+          </protocArtifact>
+          <pluginId>grpc-java</pluginId>
+          <pluginArtifact>
+            io.grpc:protoc-gen-grpc-java:${protoc-gen-grpc-java.version}:exe:${os.detected.classifier}
+          </pluginArtifact>
+        </configuration>
+        <executions>
+          <execution>
+            <id>proto-gen-validate</id>
+            <configuration>
+              <pluginParameter>lang=java</pluginParameter>
+              <pluginId>pgv-java</pluginId>
+              <pluginArtifact>
+                build.buf.protoc-gen-validate:protoc-gen-validate:${protoc-gen-validate.version}:exe:${os.detected.classifier}
+              </pluginArtifact>
+            </configuration>
+            <goals>
+              <goal>compile-custom</goal>
+            </goals>
+          </execution>
+          <execution>
+            <goals>
+              <goal>compile</goal>
+              <goal>compile-custom</goal>
+            </goals>
+            <configuration>
+              <protocPlugins>
+                <protocPlugin>
+                  <id>rxgrpc</id>
+                  <groupId>com.salesforce.servicelibs</groupId>
+                  <artifactId>rxgrpc</artifactId>
+                  <version>${reactive.grpc.version}</version>
+                  <mainClass>com.salesforce.rxgrpc.RxGrpcGenerator</mainClass>
+                </protocPlugin>
+              </protocPlugins>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>${maven.surefire.plugin.version}</version>
+        <configuration>
+          <!-- Ensures root cause ends up in the console -->
+          <trimStackTrace>false</trimStackTrace>
+        </configuration>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-failsafe-plugin</artifactId>
+        <version>${maven.failsafe.plugin.version}</version>
+        <executions>
+          <execution>
+            <id>integration-tests</id>
+            <goals>
+              <goal>integration-test</goal>
+              <goal>verify</goal>
+            </goals>
+            <configuration>
+              <!-- workaround to https://issues.apache.org/jira/browse/SUREFIRE-1831 -->
+              <useModulePath>false</useModulePath>
+              <!-- Ensures root cause ends up in the console -->
+              <trimStackTrace>false</trimStackTrace>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+      <plugin>
+        <groupId>org.jacoco</groupId>
+        <artifactId>jacoco-maven-plugin</artifactId>
+        <version>${maven.jacoco.plugin.version}</version>
+        <configuration>
+          <excludes>
+            <exclude>com/dream11/odin/MainLauncher.class</exclude>
+            <exclude>com/dream11/odin/grpc/**</exclude>
+            <exclude>com/dream11/odin/dto/v1/**</exclude>
+            <exclude>com/dream11/odin/MainLauncher.class</exclude>
+            <exclude>com/dream11/odin/MainModule.class</exclude>
+          </excludes>
+        </configuration>
+        <executions>
+          <execution>
+            <id>pre-unit-test</id>
+            <goals>
+              <goal>prepare-agent</goal>
+            </goals>
+          </execution>
+          <execution>
+            <id>post-unit-test</id>
+            <phase>prepare-package</phase>
+            <goals>
+              <goal>report</goal>
+            </goals>
+          </execution>
+          <execution>
+            <id>pre-integration-test</id>
+            <phase>pre-integration-test</phase>
+            <goals>
+              <goal>prepare-agent</goal>
+            </goals>
+          </execution>
+          <execution>
+            <id>post-integration-test</id>
+            <phase>post-integration-test</phase>
+            <goals>
+              <goal>report</goal>
+            </goals>
+          </execution>
+          <execution>
+            <id>jacoco-check</id>
+            <goals>
+              <goal>check</goal>
+            </goals>
+            <configuration>
+              <rules>
+                <rule>
+                  <element>BUNDLE</element>
+                  <limits>
+                    <limit>
+                      <counter>LINE</counter>
+                      <value>COVEREDRATIO</value>
+                      <minimum>0.7</minimum>
+                    </limit>
+                  </limits>
+                </rule>
+              </rules>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+      <plugin>
+        <!-- plugin handles the copying of project resources to the output directory. There are two different kinds of resources: main resources and test resources -->
+        <artifactId>maven-resources-plugin</artifactId>
+        <version>${maven.resources.plugin.version}</version>
+        <executions>
+          <execution>
+            <id>copy-resources</id>
+            <phase>package</phase>
+            <goals>
+              <goal>copy-resources</goal>
+            </goals>
+            <configuration>
+              <outputDirectory>${project.basedir}/${app.release.artifact}/resources</outputDirectory>
+              <resources>
+                <resource>
+                  <directory>${resource.directory}</directory>
+                </resource>
+              </resources>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+    </plugins>
+
+    <extensions>
+      <extension>
+        <groupId>kr.motd.maven</groupId>
+        <artifactId>os-maven-plugin</artifactId>
+        <version>${maven.os.plugin.version}</version>
+      </extension>
+    </extensions>
+
+  </build>
+</project>

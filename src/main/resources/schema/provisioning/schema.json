@@ -1,0 +1,24 @@
+{
+  "type" : "array",
+  "items" : {
+    "type" : "object",
+    "properties" : {
+      "component_name" : {
+        "type" : "string"
+      },
+      "deployment_type" : {
+        "type" : "string"
+      },
+      "params" : {
+        "type" : "object"
+      },
+      "plugins" : {
+        "type" : "object"
+      }
+    },
+    "required" : [
+      "component_name",
+      "deployment_type"
+    ]
+  }
+}

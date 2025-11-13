@@ -1,0 +1,65 @@
+{
+  "type": "object",
+  "required": [
+    "name",
+    "version",
+    "components"
+  ],
+  "properties": {
+    "name": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$"
+    },
+    "team": {
+      "type": "string"
+    },
+    "version": {
+      "type": "string"
+    },
+    "isActive": {
+      "enum": [
+        "True",
+        "False"
+      ],
+      "type": "string"
+    },
+    "maturity": {
+      "type": "object"
+    },
+    "meta_info": {
+      "type": "object"
+    },
+    "components": {
+      "type": "array",
+      "items": {
+        "required": [
+          "name",
+          "type",
+          "version"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "message": {
+              "maxLength": "component name must be <= 20 characters long"
+            },
+            "pattern": "^[a-z][a-z0-9-]*$",
+            "maxLength": 20
+          },
+          "type": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        }
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "description": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": false
+}

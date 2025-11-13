@@ -1,0 +1,5 @@
+# This file enables Mockito's inline mock maker, which allows mocking of:
+# - Static methods (e.g., SharedDataUtil.getInstance() in InterceptorServiceTest)
+# - Final classes
+# - Final methods
+mock-maker-inline
