@@ -1,0 +1,8 @@
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Ignore false positive for BEGIN PRIVATE KEY"
+regexes = [
+    '''BEGIN PRIVATE KEY'''
+]

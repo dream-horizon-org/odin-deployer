@@ -1,0 +1,31 @@
+{
+  "account": {
+    "name": "accWCluster",
+    "provider": "aws",
+    "services": [
+      {
+        "name": "EKS",
+        "category": "KUBERNETES",
+        "data": {
+          "clusters": [
+            {
+              "name": "test-cluster"
+            }
+          ],
+          "serviceIAMRole": "arn:aws:iam::00000000000:role/iam-role",
+          "namespaceProvider": {
+            "name": "ODIN",
+            "config": {
+              "workloads": []
+            }
+          }
+        }
+      }
+    ],
+    "data": {
+      "resourceLabels": {
+        "provisioned-by-user": "${ODIN_USER}"
+      }
+    }
+  }
+}

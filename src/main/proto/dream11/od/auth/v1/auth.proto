@@ -1,0 +1,30 @@
+syntax = "proto3";
+package dream11.od.auth.v1;
+
+import "google/protobuf/struct.proto";
+
+option java_multiple_files = true;
+option java_package = "com.dream11.odin.grpc.auth";
+
+service AuthService {
+  rpc GetUserToken(GetUserTokenRequest) returns (GetUserTokenResponse) {}
+  rpc GetAuthProvider(GetAuthProviderRequest) returns (GetAuthProviderResponse) {}
+}
+
+message GetUserTokenRequest {
+  optional int64 org_id = 1;
+  optional google.protobuf.Struct data = 2;
+}
+
+message GetUserTokenResponse {
+  string token = 1;
+}
+
+message GetAuthProviderRequest {
+  optional int64 org_id = 1;
+}
+
+message GetAuthProviderResponse {
+  string type = 1;
+  google.protobuf.Struct data = 2;
+}

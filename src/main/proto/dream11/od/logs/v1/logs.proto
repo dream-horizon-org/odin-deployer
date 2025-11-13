@@ -1,0 +1,28 @@
+syntax = "proto3";
+package dream11.od.logs.v1;
+
+option java_multiple_files = true;
+option java_package = "com.dream11.odin.grpc.logs";
+
+service LogsService {
+  rpc GetLogs(GetLogsRequest) returns (stream GetLogsResponse) {}
+}
+
+message GetLogsRequest {
+  string trace_id = 1;
+  optional bool follow = 2;
+  optional string service_name = 3;
+  optional string component_name = 4;
+  repeated int64 search_after_params = 5;
+}
+
+message GetLogsResponse {
+  repeated Log logs = 1;
+}
+
+message Log {
+  string message = 1;
+  optional string level = 2;
+  optional int64 timestamp = 3;
+  repeated int64 search_after_params = 4;
+}

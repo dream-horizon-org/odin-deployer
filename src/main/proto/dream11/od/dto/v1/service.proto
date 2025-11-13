@@ -1,0 +1,68 @@
+syntax = "proto3";
+package dream11.od.dto.v1;
+
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+
+option java_multiple_files = true;
+option java_package = "com.dream11.odin.dto.v1";
+
+message ComponentDefinition {
+  string name = 1;
+  string version = 2;
+  string type = 3;
+  repeated string depends_on = 4;
+  google.protobuf.Struct config = 5;
+}
+
+message ServiceDefinition {
+  string name = 1;
+  string version = 2;
+  string team = 3;
+  repeated ComponentDefinition components = 4;
+}
+
+message ComponentProvisioningConfig {
+  string component_name = 1;
+  string deployment_type = 2;
+  google.protobuf.Struct params = 3;
+  optional google.protobuf.Struct env_variables = 4;
+}
+
+message ProvisioningConfig {
+  repeated ComponentProvisioningConfig component_provisioning_config = 1;
+}
+
+message ServiceMetadata {
+  string name = 1;
+  string version = 2;
+  string tags = 3;
+}
+
+message AddComponentRequestOptions {
+  repeated ComponentDefinition component_definition = 1;
+  repeated ComponentProvisioningConfig provisioning_config = 2;
+}
+
+message RemoveComponentRequestOptions {
+  string component_name = 1;
+}
+
+message Service {
+  optional string name = 1;
+  optional string version = 2;
+  optional google.protobuf.Timestamp created_at = 3;
+  optional google.protobuf.Timestamp updated_at = 4;
+  optional string created_by = 5;
+  optional string updated_by = 6;
+  optional google.protobuf.Struct service_definition = 7;
+  repeated google.protobuf.Struct provisioning_config_files = 8;
+  repeated string versions = 9;
+}
+
+message ServiceVersionComparisonMetadata {
+  string name = 1;
+  string existing_version = 2;
+  string new_version = 3;
+  bool version_conflict = 4;
+}

@@ -1,0 +1,73 @@
+syntax = "proto3";
+package dream11.od.environment.v1;
+
+import "dream11/od/dto/v1/environment.proto";
+
+option java_multiple_files = true;
+option java_package = "com.dream11.odin.grpc.environment";
+
+service EnvironmentService {
+  rpc ListEnvironment(ListEnvironmentRequest) returns (ListEnvironmentResponse) {}
+  rpc DescribeEnvironment(DescribeEnvironmentRequest) returns (DescribeEnvironmentResponse) {}
+  rpc CreateEnvironment(CreateEnvironmentRequest) returns (stream CreateEnvironmentResponse) {}
+  rpc DeleteEnvironment(DeleteEnvironmentRequest) returns (stream DeleteEnvironmentResponse) {}
+  rpc StatusEnvironment(StatusEnvironmentRequest) returns (stream StatusEnvironmentResponse) {}
+}
+
+message StatusEnvironmentRequest {
+  string env_name = 1;
+  string service_name = 2;
+}
+
+message StatusEnvironmentResponse {
+  string env_name = 1;
+  string env_status = 2;
+  repeated DeployedServiceStatus services_status = 3;
+}
+
+message DeployedServiceStatus {
+  string service_name = 1;
+  string service_version = 2;
+  string service_status = 3;
+  string last_deployed = 4;
+  repeated StatusEnvComponentStatus component_status = 5;
+}
+
+message StatusEnvComponentStatus {
+  string component_name = 1;
+  string component_version = 2;
+  string component_status = 3;
+}
+message ListEnvironmentRequest {
+  map<string, string> params = 1;
+}
+
+message ListEnvironmentResponse {
+  repeated dream11.od.dto.v1.EnvironmentSummary environments = 1;
+}
+
+message DescribeEnvironmentRequest {
+  string env_name = 1;
+  map<string, string> params = 2;
+}
+
+message DescribeEnvironmentResponse {
+  dream11.od.dto.v1.Environment environment = 1;
+}
+
+message CreateEnvironmentRequest {
+  string env_name = 1;
+  repeated string accounts = 2;
+}
+
+message CreateEnvironmentResponse {
+  string message = 1;
+}
+
+message DeleteEnvironmentRequest {
+  string env_name = 1;
+}
+
+message DeleteEnvironmentResponse {
+  string message = 1;
+}
