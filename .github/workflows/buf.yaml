@@ -28,9 +28,8 @@ jobs:
       - name: Validate protocol buffers formatting
         run: buf format src/main/proto --diff --exit-code
 
-      # Uncomment once merged to master
-#      - name: Validate protocol buffers breaking changes
-#        uses: bufbuild/buf-breaking-action@c57b3d842a5c3f3b454756ef65305a50a587c5ba # v1.1.4
-#        with:
-#          input: src/main/proto
-#          against: "https://github.com/${GITHUB_REPOSITORY}.git#branch=master,ref=${GITHUB_BASE_REF},subdir=src/main/proto"
+      - name: Validate protocol buffers breaking changes
+        uses: bufbuild/buf-breaking-action@c57b3d842a5c3f3b454756ef65305a50a587c5ba # v1.1.4
+        with:
+          input: src/main/proto
+          against: "https://github.com/${GITHUB_REPOSITORY}.git#branch=master,ref=${GITHUB_BASE_REF},subdir=src/main/proto"
