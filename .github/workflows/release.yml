@@ -56,6 +56,9 @@ jobs:
         run: mvn --no-transfer-progress versions:set -DnewVersion=${{ steps.get_version.outputs.VERSION }}
 
       - name: Test
+        env:
+          ODIN_PUBLIC_KEY: ${{ secrets.ODIN_PUBLIC_KEY }}
+          ODIN_PRIVATE_KEY: ${{ secrets.ODIN_PRIVATE_KEY }}
         run: mvn --no-transfer-progress clean verify
 
       - name: Publish Test Report
