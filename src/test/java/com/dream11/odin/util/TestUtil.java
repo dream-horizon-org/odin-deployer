@@ -274,8 +274,6 @@ public class TestUtil {
     return Pair.of(
         ServiceDefinition.newBuilder()
             .setName(serviceName)
-            .setVersion(serviceVersion)
-            .setTeam("devx")
             .addAllComponents(componentDefinitionList)
             .build(),
         ProvisioningConfig.newBuilder()

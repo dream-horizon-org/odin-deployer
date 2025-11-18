@@ -59,7 +59,7 @@ public class Operate {
             .build();
 
     return RxJavaBridge.toV3Single(serviceBusiness.operateServiceFromRestEndpoint(req, traceId))
-        .map(operateResponse -> jakarta.ws.rs.core.Response.accepted(operateResponse).build())
+        .map(operateResponse -> Response.accepted(operateResponse).build())
         .toCompletionStage();
   }
 }

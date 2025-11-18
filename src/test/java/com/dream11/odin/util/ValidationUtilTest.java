@@ -11,7 +11,7 @@ import com.dream11.odin.constant.Action;
 import com.dream11.odin.constant.TaskStatus;
 import com.dream11.odin.dao.EnvironmentDao;
 import com.dream11.odin.dto.ComponentData;
-import com.dream11.odin.dto.ComponentId;
+import com.dream11.odin.dto.ComponentIdentifier;
 import com.dream11.odin.dto.ServiceData;
 import com.dream11.odin.dto.UserDetails;
 import com.dream11.odin.dto.v1.AccountInformation;
@@ -151,7 +151,7 @@ class ValidationUtilTest {
                   .addComponents(component2)
                   .build();
 
-          Map<ComponentId, ComponentData> componentDataMap = new HashMap<>();
+          Map<ComponentIdentifier, ComponentData> componentDataMap = new HashMap<>();
           ComponentProvisioningConfig provisioningConfig1 =
               ComponentProvisioningConfig.newBuilder()
                   .setDeploymentType("testDeploymentType1")
@@ -169,7 +169,7 @@ class ValidationUtilTest {
                   .build();
 
           componentDataMap.put(
-              ComponentId.builder()
+              ComponentIdentifier.builder()
                   .componentName("testComponentName1")
                   .action(Action.VALIDATE)
                   .build(),
@@ -191,7 +191,7 @@ class ValidationUtilTest {
                   .componentProvisioningConfig(provisioningConfig2)
                   .build();
           componentDataMap.put(
-              ComponentId.builder()
+              ComponentIdentifier.builder()
                   .componentName("testComponentName2")
                   .action(Action.VALIDATE)
                   .build(),
@@ -234,7 +234,6 @@ class ValidationUtilTest {
           ServiceDefinition serviceDefinition =
               ServiceDefinition.newBuilder()
                   .setName("testService")
-                  .setVersion("testVersion")
                   .build();
           ServiceData serviceData =
               ServiceData.builder()

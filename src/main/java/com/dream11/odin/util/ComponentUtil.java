@@ -5,7 +5,7 @@ import com.dream11.odin.constant.Action;
 import com.dream11.odin.constant.Constants;
 import com.dream11.odin.constant.TaskStatus;
 import com.dream11.odin.dto.ComponentData;
-import com.dream11.odin.dto.ComponentId;
+import com.dream11.odin.dto.ComponentIdentifier;
 import com.dream11.odin.dto.ServiceData;
 import com.dream11.odin.dto.UserDetails;
 import com.dream11.odin.dto.requestqueue.ComponentAction;
@@ -35,23 +35,23 @@ import org.apache.commons.codec.digest.DigestUtils;
 public class ComponentUtil {
 
   public List<ComponentTaskEntity> createComponentTaskEntities(
-      Map<ComponentId, ComponentData> componentDataMap,
+      Map<ComponentIdentifier, ComponentData> componentDataMap,
       ServiceTaskEntity serviceTaskEntity,
       List<ComponentAction> componentActions,
       UserDetails userDetails) {
-    Set<ComponentId> componentIdSet = new HashSet<>(componentDataMap.keySet());
+    Set<ComponentIdentifier> componentIdentifierSet = new HashSet<>(componentDataMap.keySet());
     List<ComponentTaskEntity> componentTaskEntities =
         new ArrayList<>(
             componentActions.stream()
                 .map(
                     componentAction -> {
-                      ComponentId componentId =
+                      ComponentIdentifier componentIdentifier =
                           buildComponentId(
                               componentAction.getComponentName(),
                               componentAction.getStage().getName());
-                      componentIdSet.remove(componentId);
+                      componentIdentifierSet.remove(componentIdentifier);
                       return createComponentTaskEntity(
-                          componentDataMap.get(componentId),
+                          componentDataMap.get(componentIdentifier),
                           serviceTaskEntity,
                           componentAction.getStage().getName(),
                           TaskStatus.IN_PROGRESS,
@@ -63,7 +63,7 @@ public class ComponentUtil {
     // Add successful task entries for remaining component data whose component actions are not
     // present
 
-    componentIdSet.forEach(
+    componentIdentifierSet.forEach(
         componentId ->
             componentTaskEntities.add(
                 createComponentTaskEntity(
@@ -114,7 +114,8 @@ public class ComponentUtil {
    * @return List of componentActions
    */
   public List<ComponentAction> getComponentActions(
-      Map<ComponentId, ComponentData> componentDataMap, Map<String, Stage> componentsStageMap) {
+      Map<ComponentIdentifier, ComponentData> componentDataMap,
+      Map<String, Stage> componentsStageMap) {
     // Component Action ID is 4 digit random integer
     List<ComponentAction> componentActions =
         componentDataMap.entrySet().stream()
@@ -190,34 +191,39 @@ public class ComponentUtil {
   }
 
   /**
-   * Returns componentAction for a given componentId
+   * Returns componentAction for a given componentIdentifier
    *
-   * @param componentId componentId (componentName, componentStage)
+   * @param componentIdentifier componentIdentifier (componentName, componentStage)
    * @param componentActions List of componentActions where each action has unique component Name
    * @return componentAction
    */
   public ComponentAction getComponentAction(
-      ComponentId componentId, List<ComponentAction> componentActions) {
+      ComponentIdentifier componentIdentifier, List<ComponentAction> componentActions) {
     return componentActions.stream()
         .filter(
             componentAction ->
-                componentAction.getComponentName().equals(componentId.getComponentName()))
+                componentAction.getComponentName().equals(componentIdentifier.getComponentName()))
         .filter(
-            componentAction -> componentAction.getStage().getName().equals(componentId.getAction()))
+            componentAction ->
+                componentAction.getStage().getName().equals(componentIdentifier.getAction()))
         .findFirst()
         .orElseThrow(
             () ->
                 new IllegalStateException(
                     String.format(
                         "Component action not found for component [%s]",
-                        componentId.getComponentName())));
+                        componentIdentifier.getComponentName())));
   }
 
   public List<Integer> getComponentDependencies(
-      ComponentId componentId,
-      Map<ComponentId, ComponentData> componentDataMap,
+      ComponentIdentifier componentIdentifier,
+      Map<ComponentIdentifier, ComponentData> componentDataMap,
       List<ComponentAction> componentActions) {
-    return componentDataMap.get(componentId).getComponentDefinition().getDependsOnList().stream()
+    return componentDataMap
+        .get(componentIdentifier)
+        .getComponentDefinition()
+        .getDependsOnList()
+        .stream()
         .map(dependentComponent -> getComponentActionId(dependentComponent, componentActions))
         .toList();
   }
@@ -267,12 +273,11 @@ public class ComponentUtil {
       ComponentProvisioningConfig componentProvisioningConfig,
       Struct operationConfig) {
     Map<String, Object> componentConfigMap =
-        new HashMap<>(
-            Map.of(
-                Constants.COMPONENT_CONFIG_KEY,
-                JsonUtil.getJsonFromProto(componentDefinition),
-                Constants.PROVISIONING_CONFIG_KEY,
-                JsonUtil.getJsonFromProto(componentProvisioningConfig)));
+        Map.of(
+            Constants.COMPONENT_CONFIG_KEY,
+            JsonUtil.getJsonFromProto(componentDefinition),
+            Constants.PROVISIONING_CONFIG_KEY,
+            JsonUtil.getJsonFromProto(componentProvisioningConfig));
     if (operationConfig != null) {
       componentConfigMap.put(
           Constants.OPERATION_CONFIG_KEY, JsonUtil.getJsonFromProto(operationConfig));
@@ -315,15 +320,8 @@ public class ComponentUtil {
     return builder.build();
   }
 
-  /**
-   * Returns a map of componentData for all components in the service definition
-   *
-   * @param serviceData ServiceData
-   * @param accountInformationList List of AccountInformation
-   * @param componentActionMap Map of component name and action
-   * @return Map of ComponentData
-   */
-  public Map<ComponentId, ComponentData> getAllComponentsData(
+  /** //todo: can be deleted */
+  public Map<ComponentIdentifier, ComponentData> getAllComponentsData(
       ServiceData serviceData,
       List<AccountInformation> accountInformationList,
       Map<String, Action> componentActionMap) {
@@ -350,7 +348,7 @@ public class ComponentUtil {
                 }));
   }
 
-  public Map<ComponentId, ComponentData> buildComponentsData(
+  public Map<ComponentIdentifier, ComponentData> buildComponentsData(
       ServiceData serviceData, Action action, List<ComponentTaskEntity> componentTaskEntities) {
     return serviceData.getServiceDefinition().getComponentsList().stream()
         .collect(
@@ -379,8 +377,8 @@ public class ComponentUtil {
                         .build()));
   }
 
-  public ComponentId buildComponentId(String componentName, Action action) {
-    return ComponentId.builder().componentName(componentName).action(action).build();
+  public ComponentIdentifier buildComponentId(String componentName, Action action) {
+    return ComponentIdentifier.builder().componentName(componentName).action(action).build();
   }
 
   public Set<String> getUnexecutedComponentNameSet(
@@ -423,16 +421,11 @@ public class ComponentUtil {
         .getDependsOnList();
   }
 
-  public static Map<ComponentId, ComponentData> getComponentDataMapForAction(
-      Map<ComponentId, ComponentData> componentDataMap, Action action) {
+  public static Map<ComponentIdentifier, ComponentData> getComponentDataMapForAction(
+      Map<ComponentIdentifier, ComponentData> componentDataMap, Action action) {
     return componentDataMap.entrySet().stream()
         .map(entry -> Map.entry(entry.getKey().withAction(action), entry.getValue()))
         .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-  }
-
-  public Map<String, Action> getAllComponentActions(ServiceData serviceData, Action action) {
-    return serviceData.getServiceDefinition().getComponentsList().stream()
-        .collect(Collectors.toMap(ComponentDefinition::getName, componentDefinition -> action));
   }
 
   public ComponentData getComponentData(ComponentAction componentAction) {

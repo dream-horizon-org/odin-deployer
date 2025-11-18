@@ -79,11 +79,11 @@ public class ServiceUtil {
       String serviceName,
       String environmentName,
       List<ComponentAction> componentActions,
-      Long serviceTaskId,
+      Long serviceId,
       Long orgId) {
 
     return ServiceRequestQueueMessage.builder()
-        .id(serviceTaskId)
+        .id(serviceId)
         .type(RequestMessageType.SERVICE)
         .body(
             ServiceRequestMessageBody.builder()
@@ -102,15 +102,12 @@ public class ServiceUtil {
       Action actions,
       UserDetails userDetails,
       int prevServiceTaskEntityVersion) {
-    JsonObject config = ServiceUtil.getServiceDefinitionConfig(serviceData.getServiceDefinition());
     return ServiceTaskEntity.builder()
         .actions(actions)
-        .config(config)
         .serviceConfigHash(
             DigestUtils.sha256Hex(createServiceProvisioningConfigJson(serviceData).encode()))
         .envId(environment.getId())
         .name(serviceData.getServiceDefinition().getName())
-        .serviceVersion(serviceData.getServiceDefinition().getVersion())
         .status(TaskStatus.IN_PROGRESS)
         .traceId(ApplicationContext.getTraceId())
         .version(prevServiceTaskEntityVersion + 1)
@@ -179,16 +176,6 @@ public class ServiceUtil {
             .getComponentProvisioningConfig()
             .getParams()
             .equals(newComponentData.getComponentProvisioningConfig().getParams());
-  }
-
-  public JsonObject getServiceDefinitionConfig(ServiceDefinition serviceDefinition) {
-    ServiceDefinition serviceDefinitionConfig =
-        ServiceDefinition.newBuilder()
-            .setName(serviceDefinition.getName())
-            .setVersion(serviceDefinition.getVersion())
-            .setTeam(serviceDefinition.getTeam())
-            .build();
-    return JsonUtil.getJsonFromProto(serviceDefinitionConfig);
   }
 
   public String getNextServiceRevision(String serviceVersion) {

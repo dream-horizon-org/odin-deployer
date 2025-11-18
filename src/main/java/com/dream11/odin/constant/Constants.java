@@ -59,6 +59,7 @@ public class Constants {
   public static final String COL_VERSION = "version";
   public static final String STAGE = "stage";
   public static final String USE_OPERATE = "use operate";
+  public static final String WAIT_FOR_DEPLOYMENT = "wait for deployment to complete";
   public static final String UNDEPLOY_AGAIN = "undeploy again";
   public static final String GRPC_VERTICLE = "com.dream11.odin.verticle.GrpcVerticle";
   public static final String CONSUMER_VERTICLE = "com.dream11.odin.verticle.ConsumerVerticle";

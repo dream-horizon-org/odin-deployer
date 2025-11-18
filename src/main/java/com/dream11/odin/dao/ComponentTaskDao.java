@@ -3,7 +3,6 @@ package com.dream11.odin.dao;
 import static com.dream11.odin.dao.query.MysqlQuery.CREATE_COMPONENT_TASK;
 import static com.dream11.odin.dao.query.MysqlQuery.GET_EXISTING_COMPONENTS_STATUSES_EXCLUDING_HEALTHCHECK_IN_ENV;
 import static com.dream11.odin.dao.query.MysqlQuery.GET_EXISTING_COMPONENTS_TASK_IN_ENV;
-import static com.dream11.odin.dao.query.MysqlQuery.GET_FAILED_OR_SUCCESS_SERVICE_COMPONENT_TASKS;
 import static com.dream11.odin.dao.query.MysqlQuery.GET_LATEST_COMPONENT_TASKS;
 import static com.dream11.odin.dao.query.MysqlQuery.GET_LATEST_SUCCESSFUL_DEPLOY_OPERATE_COMPONENT_TASK_IN_ENV;
 import static com.dream11.odin.dao.query.MysqlQuery.UPDATE_COMPONENT_TASK_STATUSES;
@@ -80,22 +79,6 @@ public class ComponentTaskDao {
                 log.info(
                     "Component task created successfully, componentTaskId: {}",
                     createdComponentTask.getId()))
-        .compose(SingleUtil.applyDebugLogs(log));
-  }
-
-  public Single<List<ComponentTaskEntity>> getFailedOrSuccessServiceComponents(
-      ServiceTaskEntity serviceTaskEntity) {
-    return mysqlClient
-        .getSlaveClient()
-        .preparedQuery(GET_FAILED_OR_SUCCESS_SERVICE_COMPONENT_TASKS)
-        .rxExecute(Tuple.of(serviceTaskEntity.getId()))
-        .map(
-            rows ->
-                StreamSupport.stream(
-                        Spliterators.spliteratorUnknownSize(rows.iterator(), Spliterator.ORDERED),
-                        false)
-                    .map(row -> buildComponentTaskEntity(row, serviceTaskEntity))
-                    .toList())
         .compose(SingleUtil.applyDebugLogs(log));
   }
 

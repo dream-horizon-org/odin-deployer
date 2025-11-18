@@ -6,8 +6,9 @@ import com.dream11.odin.ApplicationContext;
 import com.dream11.odin.constant.Action;
 import com.dream11.odin.constant.TaskStatus;
 import com.dream11.odin.dao.EnvironmentDao;
+import com.dream11.odin.dao.ServiceComponentDao;
 import com.dream11.odin.dto.ComponentData;
-import com.dream11.odin.dto.ComponentId;
+import com.dream11.odin.dto.ComponentIdentifier;
 import com.dream11.odin.dto.ServiceData;
 import com.dream11.odin.dto.UserDetails;
 import com.dream11.odin.dto.v1.AccountInformation;
@@ -44,6 +45,20 @@ public class ValidationUtil {
     return validator.validateAll();
   }
 
+  public Completable validateServiceState(
+      ServiceComponentDao serviceComponentDao,
+      String envName,
+      Map<ComponentIdentifier, ComponentData> componentDataMap,
+      ServiceData serviceData,
+      long orgId) {
+    Validator validator = new Validator();
+
+    validator.add(
+        new ServiceStatusValidatorForDeploy(
+            serviceComponentDao, envName, componentDataMap, serviceData, orgId));
+    return validator.validateAll();
+  }
+
   public Completable validateEnvState(
       EnvironmentDao environmentDao, String envName, UserDetails userDetails) {
     Validator validator = new Validator();
@@ -65,14 +80,11 @@ public class ValidationUtil {
 
   public ServiceValidateTaskEntity createServiceValidateTaskEntity(
       ServiceData serviceData, UserDetails userDetails) {
-    JsonObject config = ServiceUtil.getServiceDefinitionConfig(serviceData.getServiceDefinition());
     return ServiceValidateTaskEntity.builder()
-        .config(config)
         .serviceConfigHash(
             DigestUtils.sha256Hex(
                 ServiceUtil.createServiceProvisioningConfigJson(serviceData).encode()))
         .name(serviceData.getServiceDefinition().getName())
-        .serviceVersion(serviceData.getServiceDefinition().getVersion())
         .status(TaskStatus.IN_PROGRESS)
         .version(1)
         .traceId(ApplicationContext.getTraceId())
@@ -83,7 +95,7 @@ public class ValidationUtil {
 
   public List<ComponentValidateTaskEntity> createComponentValidateTaskEntities(
       ServiceDefinition serviceDefinition,
-      Map<ComponentId, ComponentData> componentDataMap,
+      Map<ComponentIdentifier, ComponentData> componentDataMap,
       ServiceValidateTaskEntity serviceValidateTaskEntity,
       UserDetails userDetails) {
     return serviceDefinition.getComponentsList().stream()

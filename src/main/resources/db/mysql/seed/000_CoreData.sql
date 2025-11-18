@@ -1,6 +1,3 @@
---liquibase formatted sql
-
---changeset odin:000_core_data context:seed
 INSERT INTO action (name, created_by, updated_by)
 VALUES ('DEPLOY', 1, 1) AS new
 ON DUPLICATE KEY

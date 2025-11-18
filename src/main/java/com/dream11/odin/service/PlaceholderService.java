@@ -9,7 +9,7 @@ import static com.dream11.odin.constant.Constants.ODIN_SERVICE_NAME;
 import static com.dream11.odin.constant.Constants.ODIN_USER;
 
 import com.dream11.odin.dto.ComponentData;
-import com.dream11.odin.dto.ComponentId;
+import com.dream11.odin.dto.ComponentIdentifier;
 import com.dream11.odin.dto.RequestMetaContext;
 import com.dream11.odin.dto.v1.AccountInformation;
 import com.dream11.odin.dto.v1.ProviderAccount;
@@ -41,14 +41,15 @@ public class PlaceholderService {
   final ComponentEnrichmentService componentEnrichmentService;
 
   /** Main method to replace placeholders in a batch of components */
-  public Single<Map<ComponentId, ComponentData>> replacePlaceholdersInComponents(
-      Map<ComponentId, ComponentData> componentDataMap, RequestMetaContext requestMetaContext) {
+  public Single<Map<ComponentIdentifier, ComponentData>> replacePlaceholdersInComponents(
+      Map<ComponentIdentifier, ComponentData> componentDataMap,
+      RequestMetaContext requestMetaContext) {
 
-    List<Single<Map.Entry<ComponentId, ComponentData>>> singles = new ArrayList<>();
+    List<Single<Map.Entry<ComponentIdentifier, ComponentData>>> singles = new ArrayList<>();
 
     componentDataMap.forEach(
         (key, value) -> {
-          Single<Map.Entry<ComponentId, ComponentData>> single =
+          Single<Map.Entry<ComponentIdentifier, ComponentData>> single =
               replacePlaceholders(value, requestMetaContext)
                   .map(
                       updatedComponentData ->
@@ -59,12 +60,12 @@ public class PlaceholderService {
     return Single.zip(
         singles,
         results -> {
-          Map<ComponentId, ComponentData> resultMap = new HashMap<>();
+          Map<ComponentIdentifier, ComponentData> resultMap = new HashMap<>();
           Set<String> removedComponents = new HashSet<>();
           for (Object result : results) {
             @SuppressWarnings("unchecked")
-            Map.Entry<ComponentId, ComponentData> entry =
-                (Map.Entry<ComponentId, ComponentData>) result;
+            Map.Entry<ComponentIdentifier, ComponentData> entry =
+                (Map.Entry<ComponentIdentifier, ComponentData>) result;
             if (!Objects.isNull(entry.getValue().getComponentDefinition())) {
               resultMap.put(entry.getKey(), entry.getValue());
             } else {

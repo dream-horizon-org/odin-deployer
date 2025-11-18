@@ -23,7 +23,12 @@ public class ServiceServiceV1 extends RxServiceServiceGrpc.ServiceServiceImplBas
 
     return request
         .doOnSuccess(req -> log.info("Received deploy service request: {}", req))
-        .flatMapPublisher(req -> serviceBusiness.deployService(Single.just(req)))
+        .flatMapPublisher(
+            req ->
+                serviceBusiness.deployService(
+                    req,
+                    ApplicationContext.getUserDetails(),
+                    ApplicationContext.getTraceId())) // todo: use execution id instead
         .onErrorResumeNext(
             err -> {
               log.error("Error while deploying service", err);

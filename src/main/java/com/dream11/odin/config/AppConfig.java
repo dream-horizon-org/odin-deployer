@@ -14,6 +14,7 @@ import java.util.Map;
 import java.util.Set;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.NonNull;
 
 @Data
 @NoArgsConstructor
@@ -30,9 +31,9 @@ public class AppConfig {
 
   @Valid @NotNull OdinAccountManagerConfig odinAccountManagerConfig;
 
-  @NotNull Integer envDbStatusCheckIntervalSecs;
+  @NonNull Integer envDbStatusCheckIntervalSecs;
 
-  @NotNull Integer serviceDbStatusCheckIntervalSecs = DEFAULT_SERVICE_DB_STATUS_CHECK_INTERVAL_MS;
+  @NonNull Integer serviceDbStatusCheckIntervalSecs = DEFAULT_SERVICE_DB_STATUS_CHECK_INTERVAL_MS;
 
   @Valid @NotNull LogStoreConfig logStoreConfig;
 

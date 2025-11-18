@@ -2,7 +2,7 @@ package com.dream11.odin.util;
 
 import com.dream11.odin.constant.Action;
 import com.dream11.odin.dto.ComponentData;
-import com.dream11.odin.dto.ComponentId;
+import com.dream11.odin.dto.ComponentIdentifier;
 import com.dream11.odin.dto.requestqueue.ComponentAction;
 import com.dream11.odin.dto.requestqueue.Stage;
 import java.util.ArrayList;
@@ -17,18 +17,18 @@ public class ActionUtil {
   /**
    * Create list of similar component actions for each component in component data
    *
-   * @param componentDataMap Map of ComponentId, ComponentData
+   * @param componentDataMap Map of ComponentIdentifier, ComponentData
    * @param stageName Name of stage (action)
    * @param stageConfig Config of stage (action)
    * @return List of ComponentAction
    */
   public List<ComponentAction> buildComponentActions(
-      Map<ComponentId, ComponentData> componentDataMap,
+      Map<ComponentIdentifier, ComponentData> componentDataMap,
       Action stageName,
       Map<String, Object> stageConfig) {
     Map<String, Stage> componentsStageMap =
         ComponentUtil.generateAllComponentStages(
-            componentDataMap.keySet().stream().map(ComponentId::getComponentName).toList(),
+            componentDataMap.keySet().stream().map(ComponentIdentifier::getComponentName).toList(),
             stageName,
             stageConfig);
 
