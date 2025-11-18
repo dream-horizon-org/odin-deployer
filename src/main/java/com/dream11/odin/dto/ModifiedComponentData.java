@@ -17,8 +17,8 @@ import lombok.Getter;
 
 @Getter
 public class ModifiedComponentData {
-  final ComponentId deployComponentId;
-  final ComponentId undeployComponentId;
+  final ComponentIdentifier deployComponentIdentifier;
+  final ComponentIdentifier undeployComponentIdentifier;
   final ComponentData oldComponentData;
   final ComponentData newComponentData;
   final ComponentAction undeployComponentAction;
@@ -26,11 +26,11 @@ public class ModifiedComponentData {
 
   public ModifiedComponentData(
       ComponentTaskEntity componentTaskEntity,
-      Map<ComponentId, ComponentData> componentDataMap,
+      Map<ComponentIdentifier, ComponentData> componentDataMap,
       List<ComponentAction> componentActions) {
-    this.deployComponentId =
+    this.deployComponentIdentifier =
         ComponentUtil.buildComponentId(componentTaskEntity.getComponentName(), Action.DEPLOY);
-    this.undeployComponentId =
+    this.undeployComponentIdentifier =
         ComponentUtil.buildComponentId(componentTaskEntity.getComponentName(), Action.UNDEPLOY);
 
     ComponentDefinition oldComponentDefinition =
@@ -67,18 +67,22 @@ public class ModifiedComponentData {
 
     // If component task belong to a component which is not present in new service definition
     // but was a part of previous failed deployment. Then it's new configuration will not be present
-    if (componentDataMap.containsKey(this.deployComponentId)) {
+    if (componentDataMap.containsKey(this.deployComponentIdentifier)) {
       this.newComponentData =
           ComponentData.builder()
               .componentDefinition(
-                  componentDataMap.get(this.deployComponentId).getComponentDefinition())
+                  componentDataMap.get(this.deployComponentIdentifier).getComponentDefinition())
               .componentProvisioningConfig(
-                  componentDataMap.get(this.deployComponentId).getComponentProvisioningConfig())
+                  componentDataMap
+                      .get(this.deployComponentIdentifier)
+                      .getComponentProvisioningConfig())
               .environmentProviderAccounts(
-                  componentDataMap.get(this.deployComponentId).getEnvironmentProviderAccounts())
+                  componentDataMap
+                      .get(this.deployComponentIdentifier)
+                      .getEnvironmentProviderAccounts())
               .build();
       this.deployComponentAction =
-          ComponentUtil.getComponentAction(this.deployComponentId, componentActions)
+          ComponentUtil.getComponentAction(this.deployComponentIdentifier, componentActions)
               .addDependsOn(List.of(undeployComponentAction.getId()));
     } else {
       this.newComponentData = null;

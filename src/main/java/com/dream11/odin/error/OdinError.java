@@ -137,7 +137,10 @@ public enum OdinError implements GrpcError {
   AUTH_ID_TOKEN_PARSE_FAILED("OD228", "Failed to decode id_token payload", Code.INTERNAL),
   AUTH_TOKEN_EXCHANGE_FAILED("OD229", "Token exchange failed with status %s: %s", Code.INTERNAL),
   AUTH_TOKEN_RESPONSE_PARSE_FAILED(
-      "OD230", "Failed to parse token response from provider", Code.INTERNAL);
+      "OD230", "Failed to parse token response from provider", Code.INTERNAL),
+  EXECUTION_NOT_FOUND("OD231", "Execution not found for executionId: %s", Code.INVALID_ARGUMENT),
+
+  FAILED_TO_ACQUIRE_LOCK("OD232", "Failed to acquire lock on %s", Code.INVALID_ARGUMENT);
 
   private final String errorCode;
   private final String errorMessage;

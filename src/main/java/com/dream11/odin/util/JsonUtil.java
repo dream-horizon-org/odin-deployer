@@ -8,11 +8,13 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.protobuf.*;
 import com.google.protobuf.util.JsonFormat;
+import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.reactivex.sqlclient.Row;
 import io.vertx.reactivex.sqlclient.RowSet;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -171,5 +173,38 @@ public class JsonUtil {
 
   private ObjectMapper getObjectMapper() {
     return SharedDataUtil.getInstance(GuiceInjector.class).getInstance(ObjectMapper.class);
+  }
+
+  public Map<String, Object> toMap(JsonObject json) {
+    if (json == null) return Collections.emptyMap();
+
+    Map<String, Object> result = new HashMap<>();
+    for (Map.Entry<String, Object> entry : json.getMap().entrySet()) {
+      Object value = entry.getValue();
+      if (value instanceof JsonObject) {
+        result.put(entry.getKey(), toMap((JsonObject) value));
+      } else if (value instanceof JsonArray) {
+        result.put(entry.getKey(), toList((JsonArray) value));
+      } else {
+        result.put(entry.getKey(), value);
+      }
+    }
+    return result;
+  }
+
+  public List<Object> toList(JsonArray array) {
+    if (array == null) return Collections.emptyList();
+
+    List<Object> result = new ArrayList<>();
+    for (Object value : array) {
+      if (value instanceof JsonObject) {
+        result.add(toMap((JsonObject) value));
+      } else if (value instanceof JsonArray) {
+        result.add(toList((JsonArray) value));
+      } else {
+        result.add(value);
+      }
+    }
+    return result;
   }
 }

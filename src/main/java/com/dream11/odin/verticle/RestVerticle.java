@@ -54,11 +54,9 @@ public class RestVerticle extends AbstractRestVerticle {
   @Override
   public Completable rxStart() {
     this.mysqlClient =
-        MysqlClientFactory.getDefaultInstance(
-            io.vertx.reactivex.core.Vertx.newInstance(this.vertx.getDelegate()));
+        MysqlClientFactory.getDefaultInstance(Vertx.newInstance(this.vertx.getDelegate()));
     this.webClient =
-        WebClientFactory.getDefaultInstance(
-            io.vertx.reactivex.core.Vertx.newInstance(this.vertx.getDelegate()));
+        WebClientFactory.getDefaultInstance(Vertx.newInstance(this.vertx.getDelegate()));
     AppConfig appConfig = this.getInjector().getInstance(AppConfig.class);
     this.producer = MessageProducerFactory.create(appConfig.getQueue().getRequest());
     ChannelCredentials credentials =

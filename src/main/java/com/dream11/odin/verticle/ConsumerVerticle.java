@@ -35,7 +35,7 @@ import software.amazon.awssdk.services.sqs.model.Message;
 public class ConsumerVerticle extends AbstractVerticle {
 
   ClassInjector classInjector;
-  MessageConsumer<software.amazon.awssdk.services.sqs.model.Message> messageConsumer;
+  MessageConsumer<Message> messageConsumer;
   MysqlClient mysqlClient;
   WebClient webClient;
 

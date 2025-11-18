@@ -4,7 +4,7 @@ import com.dream11.odin.client.WebClient;
 import com.dream11.odin.config.InterceptorConfig;
 import com.dream11.odin.constant.Constants;
 import com.dream11.odin.dto.ComponentData;
-import com.dream11.odin.dto.ComponentId;
+import com.dream11.odin.dto.ComponentIdentifier;
 import com.dream11.odin.dto.RequestMetaContext;
 import com.dream11.odin.dto.interceptor.EnvironmentContext;
 import com.dream11.odin.dto.interceptor.InterceptorContext;
@@ -45,8 +45,9 @@ public class InterceptorService {
   final WebClient webClient;
   final ObjectMapper objectMapper;
 
-  public Single<Map<ComponentId, ComponentData>> invokeInterceptors(
-      Map<ComponentId, ComponentData> componentDataMap, RequestMetaContext requestMetaContext) {
+  public Single<Map<ComponentIdentifier, ComponentData>> invokeInterceptors(
+      Map<ComponentIdentifier, ComponentData> componentDataMap,
+      RequestMetaContext requestMetaContext) {
 
     // If no interceptors configured, return original data
     if (interceptors.getComponent().isEmpty()) {
@@ -54,7 +55,7 @@ public class InterceptorService {
       return Single.just(componentDataMap);
     }
 
-    List<Single<AbstractMap.SimpleEntry<ComponentId, ComponentData>>> singles =
+    List<Single<AbstractMap.SimpleEntry<ComponentIdentifier, ComponentData>>> singles =
         componentDataMap.entrySet().stream()
             .map(
                 entry ->

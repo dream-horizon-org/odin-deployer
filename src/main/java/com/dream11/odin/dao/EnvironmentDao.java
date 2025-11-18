@@ -1,6 +1,7 @@
 package com.dream11.odin.dao;
 
 import static com.dream11.odin.constant.Constants.COL_ACTION_NAME;
+import static com.dream11.odin.constant.Constants.COL_CREATED_BY;
 import static com.dream11.odin.constant.Constants.CREATED_AT;
 import static com.dream11.odin.constant.Constants.EKS_PROVIDER_SERVICE_CATEGORY;
 import static com.dream11.odin.constant.Constants.SERVICE_NAME;
@@ -11,36 +12,33 @@ import static com.dream11.odin.dao.query.MysqlQuery.BY_ACCOUNT;
 import static com.dream11.odin.dao.query.MysqlQuery.BY_ENVIRONMENT_NAME;
 import static com.dream11.odin.dao.query.MysqlQuery.BY_USER;
 import static com.dream11.odin.dao.query.MysqlQuery.CREATE_ENVIRONMENT;
-import static com.dream11.odin.dao.query.MysqlQuery.CREATE_ENVIRONMENT_TASK;
+import static com.dream11.odin.dao.query.MysqlQuery.CREATE_ENVIRONMENT_ACCOUNT;
 import static com.dream11.odin.dao.query.MysqlQuery.ENVIRONMENT_BY_ID;
 import static com.dream11.odin.dao.query.MysqlQuery.EOL;
-import static com.dream11.odin.dao.query.MysqlQuery.GET_ACTION_ID;
+import static com.dream11.odin.dao.query.MysqlQuery.GET_ALL_ENVIRONMENT_ACCOUNTS;
 import static com.dream11.odin.dao.query.MysqlQuery.GET_COMPONENT_TASKS_AFTER_LAST_UNDEPLOY_FOR_SERVICE_IN_ENV;
 import static com.dream11.odin.dao.query.MysqlQuery.GET_COMPONENT_TASKS_FOR_SERVICE_IN_ENV;
 import static com.dream11.odin.dao.query.MysqlQuery.GET_ENVIRONMENTS_WITH_ALL_FIELDS;
-import static com.dream11.odin.dao.query.MysqlQuery.GET_ENVIRONMENT_TASK;
+import static com.dream11.odin.dao.query.MysqlQuery.GET_ENVIRONMENT_ACCOUNT;
+import static com.dream11.odin.dao.query.MysqlQuery.GET_ENVIRONMENT_SERVICES;
+import static com.dream11.odin.dao.query.MysqlQuery.GET_ENV_ACCOUNT_ID_FROM_ENV_ID_AND_NAME;
 import static com.dream11.odin.dao.query.MysqlQuery.GET_LAST_COMPONENT_TASKS_FOR_SERVICE_IN_ENV;
-import static com.dream11.odin.dao.query.MysqlQuery.GET_LATEST_ENVIRONMENT_TASK;
-import static com.dream11.odin.dao.query.MysqlQuery.GET_LATEST_ENVIRONMENT_TASK_EXCLUDING_DELETED;
-import static com.dream11.odin.dao.query.MysqlQuery.GET_LATEST_SERVICE_TASKS_FOR_ENV;
 import static com.dream11.odin.dao.query.MysqlQuery.IS_ACTIVE_FILTER;
 import static com.dream11.odin.dao.query.MysqlQuery.REMOVE_DELETED_ENVIRONMENTS;
 import static com.dream11.odin.dao.query.MysqlQuery.UPDATE_ENVIRONMENT;
+import static com.dream11.odin.dao.query.MysqlQuery.UPDATE_ENVIRONMENT_ACCOUNT;
+import static com.dream11.odin.dao.query.MysqlQuery.UPDATE_ENVIRONMENT_ACCOUNT_STATUS;
 import static com.dream11.odin.dao.query.MysqlQuery.UPDATE_ENVIRONMENT_ACTIVE_STATUS;
-import static com.dream11.odin.dao.query.MysqlQuery.UPDATE_ENVIRONMENT_TASK_STATUS;
-import static com.dream11.odin.entity.EnvironmentTask.COL_ACTION_ID;
-import static com.dream11.odin.entity.EnvironmentTask.COL_CREATED_BY;
-import static com.dream11.odin.entity.EnvironmentTask.COL_ENVID;
-import static com.dream11.odin.entity.EnvironmentTask.COL_ID;
-import static com.dream11.odin.entity.EnvironmentTask.COL_PROVIDER_ACCOUNT_NAME;
-import static com.dream11.odin.entity.EnvironmentTask.COL_RESPONSE;
-import static com.dream11.odin.entity.EnvironmentTask.COL_SERVICE_ACCOUNTS_SNAPSHOT;
-import static com.dream11.odin.entity.EnvironmentTask.COL_STATUS;
-import static com.dream11.odin.entity.EnvironmentTask.COL_VERSION;
+import static com.dream11.odin.dao.query.MysqlQuery.UPDATE_EXECUTION_TASK;
+import static com.dream11.odin.entity.EnvironmentAccount.COL_ACCOUNT_DATA;
+import static com.dream11.odin.entity.EnvironmentAccount.COL_ACTION;
+import static com.dream11.odin.entity.EnvironmentAccount.COL_ENVIRONMENT_ID;
+import static com.dream11.odin.entity.EnvironmentAccount.COL_ID;
+import static com.dream11.odin.entity.EnvironmentAccount.COL_PROVIDER_ACCOUNT_NAME;
+import static com.dream11.odin.entity.EnvironmentAccount.COL_STATUS;
 
 import com.dream11.grpc.error.GrpcException;
 import com.dream11.grpc.util.ExceptionUtil;
-import com.dream11.odin.ApplicationContext;
 import com.dream11.odin.client.MysqlClient;
 import com.dream11.odin.constant.Action;
 import com.dream11.odin.constant.TaskStatus;
@@ -49,8 +47,8 @@ import com.dream11.odin.dto.v1.ComponentTask;
 import com.dream11.odin.dto.v1.Environment;
 import com.dream11.odin.dto.v1.ProviderServiceAccount;
 import com.dream11.odin.dto.v1.ServiceTask;
+import com.dream11.odin.entity.EnvironmentAccount;
 import com.dream11.odin.entity.EnvironmentEntity;
-import com.dream11.odin.entity.EnvironmentTask;
 import com.dream11.odin.error.OdinError;
 import com.dream11.odin.grpc.provideraccount.v1.GetProviderAccountResponse;
 import com.dream11.odin.util.DateTimeUtil;
@@ -97,6 +95,7 @@ public class EnvironmentDao {
   public static final String CONFIG = "config";
   public static final String VARIABLE_PAIR = "%s-%s";
   final MysqlClient mysqlClient;
+  final LockDao lockDao;
 
   public Single<List<Environment>> getEnvironments(
       String userId, Long orgId, Boolean displayAll, String account, boolean removeDeleted) {
@@ -141,11 +140,11 @@ public class EnvironmentDao {
         .compose(SingleUtil.applyDebugLogs(log));
   }
 
-  public Single<List<EnvironmentTask>> getLatestEnvironmentTasks(
+  public Single<List<EnvironmentAccount>> getEnvironmentAccounts(
       String environmentName, Long orgId) {
     return mysqlClient
         .getSlaveClient()
-        .preparedQuery(GET_LATEST_ENVIRONMENT_TASK_EXCLUDING_DELETED)
+        .preparedQuery(GET_ALL_ENVIRONMENT_ACCOUNTS)
         .rxExecute(Tuple.of(environmentName, orgId))
         .filter(rowSet -> rowSet.size() > 0)
         .switchIfEmpty(
@@ -157,16 +156,14 @@ public class EnvironmentDao {
                         false)
                     .map(
                         row ->
-                            EnvironmentTask.builder()
+                            EnvironmentAccount.builder()
                                 .id(row.getLong(COL_ID))
-                                .envId(row.getLong(COL_ENVID))
+                                .environmentId(row.getLong(COL_ENVIRONMENT_ID))
                                 .status(TaskStatus.valueOf(row.getString(COL_STATUS)))
-                                .actionId(row.getLong(COL_ACTION_ID))
-                                .version(row.getInteger(COL_VERSION))
+                                .action(row.getString(COL_ACTION))
                                 .createdBy(row.getString(COL_CREATED_BY))
-                                .serviceAccountSnapshot(
-                                    row.getJsonObject(COL_SERVICE_ACCOUNTS_SNAPSHOT).toString())
-                                .providerAccountName(row.getString(COL_PROVIDER_ACCOUNT_NAME))
+                                .accountData(row.getJsonObject(COL_ACCOUNT_DATA).toString())
+                                .accountName(row.getString(COL_PROVIDER_ACCOUNT_NAME))
                                 .build())
                     .toList())
         .compose(SingleUtil.applyDebugLogs(log));
@@ -190,16 +187,15 @@ public class EnvironmentDao {
         .getSlaveClient()
         .preparedQuery(
             GET_ENVIRONMENTS_WITH_ALL_FIELDS.apply(IS_ACTIVE_FILTER + BY_ENVIRONMENT_NAME + EOL))
-        .rxExecute(Tuple.of(orgId, orgId, environmentName))
+        .rxExecute(Tuple.of(orgId, environmentName))
         .filter(rowSet -> rowSet.size() > 0)
-        .switchIfEmpty(Maybe.empty())
         .flatMap(rowset -> Maybe.just(buildEnvironmentBuilder(rowset).build()));
   }
 
   public Single<Environment> getEnvironmentWithServices(Long orgId, String environmentName) {
     return mysqlClient
         .getSlaveClient()
-        .preparedQuery(GET_LATEST_ENVIRONMENT_TASK)
+        .preparedQuery(GET_ALL_ENVIRONMENT_ACCOUNTS)
         .rxExecute(Tuple.of(environmentName, orgId))
         .filter(rowSet -> rowSet.size() > 0)
         .switchIfEmpty(
@@ -207,7 +203,7 @@ public class EnvironmentDao {
         .flatMap(
             rowSet ->
                 buildEnvironmentWithServices(
-                    getEnvironmentServices(rowSet.iterator().next().getLong(COL_ENVID)),
+                    getEnvironmentServices(rowSet.iterator().next().getLong(COL_ENVIRONMENT_ID)),
                     buildEnvironmentBuilder(rowSet)))
         .compose(SingleUtil.applyDebugLogs(log));
   }
@@ -215,7 +211,7 @@ public class EnvironmentDao {
   private Single<RowSet<Row>> getEnvironmentServices(Long envId) {
     return mysqlClient
         .getSlaveClient()
-        .preparedQuery(GET_LATEST_SERVICE_TASKS_FOR_ENV)
+        .preparedQuery(GET_ENVIRONMENT_SERVICES)
         .rxExecute(Tuple.of(envId))
         .compose(SingleUtil.applyDebugLogs(log));
   }
@@ -246,7 +242,7 @@ public class EnvironmentDao {
       Long orgId, String environmentName, String serviceName) {
     return mysqlClient
         .getSlaveClient()
-        .preparedQuery(GET_LATEST_ENVIRONMENT_TASK)
+        .preparedQuery(GET_ALL_ENVIRONMENT_ACCOUNTS)
         .rxExecute(Tuple.of(environmentName, orgId))
         .filter(rowSet -> rowSet.size() > 0)
         .switchIfEmpty(
@@ -255,7 +251,7 @@ public class EnvironmentDao {
             rowSet ->
                 buildEnvironmentServiceWithAllComponents(
                     getEnvironmentServiceComponents(
-                        rowSet.iterator().next().getLong(COL_ENVID), serviceName),
+                        rowSet.iterator().next().getLong(COL_ENVIRONMENT_ID), serviceName),
                     orgId,
                     environmentName,
                     serviceName))
@@ -270,7 +266,7 @@ public class EnvironmentDao {
       boolean filterFailedComponents) {
     return mysqlClient
         .getSlaveClient()
-        .preparedQuery(GET_LATEST_ENVIRONMENT_TASK)
+        .preparedQuery(GET_ALL_ENVIRONMENT_ACCOUNTS)
         .rxExecute(Tuple.of(environmentName, orgId))
         .filter(rowSet -> rowSet.size() > 0)
         .switchIfEmpty(
@@ -279,7 +275,7 @@ public class EnvironmentDao {
             rowSet ->
                 buildEnvironmentWithServiceWithComponent(
                     getEnvironmentServiceComponent(
-                        rowSet.iterator().next().getLong(COL_ENVID),
+                        rowSet.iterator().next().getLong(COL_ENVIRONMENT_ID),
                         serviceName,
                         componentName,
                         filterFailedComponents),
@@ -289,73 +285,128 @@ public class EnvironmentDao {
         .compose(SingleUtil.applyDebugLogs(log));
   }
 
-  public Maybe<List<Optional<EnvironmentTask>>> createEnvAndEnvTask(
+  public Maybe<List<Optional<EnvironmentAccount>>> createEnvAndEnvAccount(
       EnvironmentEntity environment, List<GetProviderAccountResponse> providerAccountResponses) {
+
     return mysqlClient
         .getMasterClient()
         .rxWithTransaction(
-            (Function<SqlConnection, Maybe<List<Optional<EnvironmentTask>>>>)
+            (Function<SqlConnection, Maybe<List<Optional<EnvironmentAccount>>>>)
                 connection ->
                     createEnvironment(connection, environment)
                         .flatMapMaybe(
                             createdEnvironment ->
-                                createEnvironmentTasks(
-                                        providerAccountResponses,
-                                        createdEnvironment,
-                                        Action.CREATE_ENVIRONMENT,
+                                lockDao
+                                    .ensureEnvironmentLock(
+                                        createdEnvironment.id(),
+                                        environment.createdBy(),
                                         connection)
-                                    .toMaybe()))
+                                    .andThen(
+                                        lockDao.acquireEnvironmentExclusiveLock(
+                                            createdEnvironment.id(), connection))
+                                    .andThen(
+                                        createEnvironmentAccount(
+                                                providerAccountResponses,
+                                                createdEnvironment,
+                                                Action.CREATE_ENVIRONMENT,
+                                                connection)
+                                            .toMaybe())))
         .doOnError(err -> log.error("Error while transaction {}", err.getMessage(), err))
         .doOnSuccess(r -> log.debug("Transaction completed"));
   }
 
-  public Single<EnvironmentTask> createEnvironmentTasks(
-      SqlConnection sqlConnection, EnvironmentTask environmentTask) {
+  public Single<EnvironmentAccount> createEnvironmentAccount(
+      SqlConnection sqlConnection, EnvironmentAccount environmentAccount) {
 
     Object[] params = {
-      environmentTask.envId(),
-      environmentTask.actionId(),
-      environmentTask.status(),
-      environmentTask.version(),
-      ApplicationContext.getTraceId(),
-      environmentTask.createdBy(),
-      environmentTask.providerAccountName(),
-      environmentTask.serviceAccountSnapshot(),
-      environmentTask.response().orElseGet(() -> "{}"),
-      environmentTask.createdBy()
+      environmentAccount.environmentId(),
+      environmentAccount.action(),
+      environmentAccount.status(),
+      environmentAccount.createdBy(),
+      environmentAccount.accountName(),
+      environmentAccount.accountData(),
+      environmentAccount.createdBy()
     };
     return sqlConnection
-        .preparedQuery(CREATE_ENVIRONMENT_TASK)
+        .preparedQuery(CREATE_ENVIRONMENT_ACCOUNT)
         .rxExecute(Tuple.wrap(params))
         .map(
             insertResult -> {
               if (insertResult.rowCount() == 0) {
-                log.error("Insert failed for environment task {}", environmentTask);
+                log.error("Insert failed for environment task {}", environmentAccount);
                 throw new GrpcException(OdinError.INTERNAL_SERVER_ERROR);
               }
               return insertResult;
             })
         .map(
             rowSet ->
-                EnvironmentTask.builder()
+                EnvironmentAccount.builder()
                     .id(rowSet.property(MySQLClient.LAST_INSERTED_ID))
-                    .envId(environmentTask.envId())
-                    .status(environmentTask.status())
-                    .actionId(environmentTask.actionId())
-                    .version(environmentTask.version())
-                    .createdBy(environmentTask.createdBy())
-                    .serviceAccountSnapshot(environmentTask.serviceAccountSnapshot())
-                    .providerAccountName(environmentTask.providerAccountName())
-                    .response(environmentTask.response())
-                    .traceId(environmentTask.traceId())
+                    .environmentId(environmentAccount.environmentId())
+                    .status(environmentAccount.status())
+                    .action(environmentAccount.action())
+                    .createdBy(environmentAccount.createdBy())
+                    .accountData(environmentAccount.accountData())
+                    .accountName(environmentAccount.accountName())
                     .build());
   }
 
-  public Single<List<Optional<EnvironmentTask>>> createEnvironmentTasks(
+  public Single<EnvironmentAccount> updateEnvironmentAccount(
+      SqlConnection sqlConnection, EnvironmentAccount environmentAccount) {
+
+    Object[] params = {
+      environmentAccount.status(),
+      environmentAccount.action(),
+      environmentAccount.createdBy(),
+      environmentAccount.environmentId(),
+      environmentAccount.accountName(),
+    };
+
+    return sqlConnection
+        .preparedQuery(UPDATE_ENVIRONMENT_ACCOUNT)
+        .rxExecute(Tuple.wrap(params))
+        .flatMap(
+            rowSet -> {
+              if (rowSet.rowCount() == 0) {
+                log.error("No rows updated for environment account {}", environmentAccount);
+                throw new GrpcException(OdinError.INTERNAL_SERVER_ERROR);
+              }
+              return sqlConnection
+                  .preparedQuery(GET_ENV_ACCOUNT_ID_FROM_ENV_ID_AND_NAME)
+                  .rxExecute(
+                      Tuple.of(
+                          environmentAccount.environmentId(), environmentAccount.accountName()))
+                  .map(
+                      result -> {
+                        if (!result.iterator().hasNext()) {
+                          log.error(
+                              "Unable to fetch id for updated environment account {}",
+                              environmentAccount);
+                          throw new GrpcException(OdinError.INTERNAL_SERVER_ERROR);
+                        }
+
+                        Row row = result.iterator().next();
+                        Long id = row.getLong("id");
+
+                        return EnvironmentAccount.builder()
+                            .id(id)
+                            .environmentId(environmentAccount.environmentId())
+                            .status(environmentAccount.status())
+                            .action(environmentAccount.action())
+                            .createdBy(environmentAccount.createdBy())
+                            .accountData(environmentAccount.accountData())
+                            .accountName(environmentAccount.accountName())
+                            .build();
+                      });
+            });
+  }
+
+  public Single<List<Optional<EnvironmentAccount>>> createEnvironmentAccount(
       List<GetProviderAccountResponse> providerAccountResponses,
       EnvironmentEntity environmentEntity,
       Action action,
       SqlConnection connection) {
+
     return Observable.fromIterable(providerAccountResponses)
         .flatMapMaybe(
             providerAccountResponse -> {
@@ -363,31 +414,87 @@ public class EnvironmentDao {
               TaskStatus taskStatus =
                   clusters.isEmpty() ? TaskStatus.SUCCESSFUL : TaskStatus.IN_PROGRESS;
 
-              return getActionId(connection, action)
-                  .flatMap(
-                      actionId -> {
-                        EnvironmentTask environmentTask =
-                            EnvironmentTask.builder()
-                                .envId(environmentEntity.id())
-                                .status(taskStatus)
-                                .actionId(actionId)
-                                .createdBy(environmentEntity.createdBy())
-                                .serviceAccountSnapshot(
-                                    JsonFormat.printer().print(providerAccountResponse))
-                                .providerAccountName(providerAccountResponse.getAccount().getName())
-                                .response(Optional.empty())
-                                .version(1)
-                                .traceId(Optional.ofNullable(ApplicationContext.getTraceId()))
-                                .build();
-                        return createEnvironmentTasks(connection, environmentTask);
-                      })
+              EnvironmentAccount environmentAccount =
+                  EnvironmentAccount.builder()
+                      .environmentId(environmentEntity.id())
+                      .status(taskStatus)
+                      .action(action.getName())
+                      .createdBy(environmentEntity.createdBy())
+                      .accountData(JsonFormat.printer().print(providerAccountResponse))
+                      .accountName(providerAccountResponse.getAccount().getName())
+                      .build();
+
+              return createEnvironmentAccount(connection, environmentAccount)
                   .map(Optional::of)
                   .toMaybe();
             })
         .toList();
   }
 
-  public Single<List<Optional<EnvironmentTask>>> createEnvironmentTasks(
+  public Single<List<Optional<EnvironmentAccount>>> updateEnvironmentAccount(
+      List<GetProviderAccountResponse> providerAccountResponses,
+      EnvironmentEntity environmentEntity,
+      Action action,
+      SqlConnection connection) {
+
+    return Observable.fromIterable(providerAccountResponses)
+        .flatMapMaybe(
+            providerAccountResponse -> {
+              EnvironmentAccount environmentAccount =
+                  EnvironmentAccount.builder()
+                      .environmentId(environmentEntity.id())
+                      .status(TaskStatus.IN_PROGRESS)
+                      .action(action.getName())
+                      .createdBy(environmentEntity.createdBy())
+                      .accountData(JsonFormat.printer().print(providerAccountResponse))
+                      .accountName(providerAccountResponse.getAccount().getName())
+                      .build();
+
+              return updateEnvironmentAccount(connection, environmentAccount)
+                  .map(Optional::of)
+                  .toMaybe();
+            })
+        .toList();
+  }
+
+  public Single<List<EnvironmentAccount>> filterAndUpdateEnvironmentAccounts(
+      List<Optional<EnvironmentAccount>> envAccs,
+      List<GetProviderAccountResponse> providerAccountResponses,
+      String updatedBy) {
+
+    return Observable.fromIterable(envAccs)
+        .filter(Optional::isPresent)
+        .map(Optional::get)
+        .flatMapMaybe(
+            envAccount -> {
+              // match provider snapshot by accountName
+              GetProviderAccountResponse providerResp =
+                  providerAccountResponses.stream()
+                      .filter(r -> r.getAccount().getName().equals(envAccount.accountName()))
+                      .findFirst()
+                      .orElse(null);
+
+              // be defensive if providerResp is null
+              List<String> clusters =
+                  (providerResp != null)
+                      ? extractClusters(providerResp)
+                      : java.util.Collections.emptyList();
+
+              if (clusters == null || clusters.isEmpty()) {
+                // No clusters: just mark SUCCESSFUL and DO NOT emit this account
+                return updateEnvironmentAccountStatusByIds(
+                        java.util.Collections.singletonList(envAccount.id()),
+                        TaskStatus.SUCCESSFUL.getValue())
+                    .andThen(Maybe.empty());
+              } else {
+                // Has clusters: keep it so the caller can push to SQS
+                return Maybe.just(envAccount);
+              }
+            })
+        .toList(); // Single<List<EnvironmentAccount>>
+  }
+
+  public Single<List<Optional<EnvironmentAccount>>> createEnvironmentAccount(
       List<GetProviderAccountResponse> providerAccountResponses,
       EnvironmentEntity environmentEntity,
       Action action) {
@@ -396,18 +503,39 @@ public class EnvironmentDao {
         .rxGetConnection()
         .flatMap(
             connection ->
-                createEnvironmentTasks(
+                createEnvironmentAccount(
                     providerAccountResponses, environmentEntity, action, connection));
+  }
+
+  public Maybe<List<Optional<EnvironmentAccount>>> updateEnvironmentAccount(
+      List<GetProviderAccountResponse> providerAccountResponses,
+      EnvironmentEntity environmentEntity,
+      Action action) {
+
+    return mysqlClient
+        .getMasterClient()
+        .rxWithTransaction(
+            (Function<SqlConnection, Maybe<List<Optional<EnvironmentAccount>>>>)
+                connection ->
+                    lockDao
+                        .ensureEnvironmentLock(
+                            environmentEntity.id(), environmentEntity.createdBy(), connection)
+                        .andThen(
+                            lockDao.acquireEnvironmentExclusiveLock(
+                                environmentEntity.id(), connection))
+                        .andThen(
+                            updateEnvironmentAccount(
+                                    providerAccountResponses, environmentEntity, action, connection)
+                                .toMaybe()))
+        .doOnError(
+            err -> log.error("Error while updating environment account: {}", err.getMessage(), err))
+        .doOnSuccess(r -> log.debug("Environment account update transaction completed"));
   }
 
   public Single<EnvironmentEntity> createEnvironment(
       SqlConnection sqlConnection, EnvironmentEntity environment) {
     Object[] params = {
-      environment.createdBy(),
-      environment.version(),
-      environment.orgId(),
-      environment.name(),
-      environment.createdBy(),
+      environment.createdBy(), environment.orgId(), environment.name(), environment.createdBy(),
     };
     return sqlConnection
         .preparedQuery(CREATE_ENVIRONMENT)
@@ -426,8 +554,7 @@ public class EnvironmentDao {
                     rowSet.property(MySQLClient.LAST_INSERTED_ID),
                     environment.orgId(),
                     environment.name(),
-                    environment.createdBy(),
-                    environment.version()));
+                    environment.createdBy()));
   }
 
   public Completable updateEnvironment(long orgId, Environment environment) {
@@ -453,15 +580,16 @@ public class EnvironmentDao {
         .ignoreElement();
   }
 
-  public Completable updateEnvironmentTaskStatus(ResponseMessage message) {
+  public Completable updateExecutionStatus(ResponseMessage message) {
+    // TODO: Update status for each execution task based on message
     Object[] params = {
       message.getStatus(),
       new JsonObject().put("response", message.toString()).toString(),
-      message.getId()
+      message.getExecutionId(),
     };
     return mysqlClient
         .getMasterClient()
-        .preparedQuery(UPDATE_ENVIRONMENT_TASK_STATUS)
+        .preparedQuery(UPDATE_EXECUTION_TASK)
         .rxExecute(Tuple.wrap(params))
         .map(
             updateResult -> {
@@ -474,9 +602,28 @@ public class EnvironmentDao {
         .ignoreElement();
   }
 
-  public Completable setEnvironmentInActiveForDeleteEnvironmentTask(long environmentTaskId) {
+  public Completable updateEnvironmentAccountStatus(ResponseMessage message) {
     Object[] params = {
-      environmentTaskId, Action.DELETE_ENVIRONMENT.getName(), TaskStatus.SUCCESSFUL.getValue()
+      message.getStatus(), message.getId(),
+    };
+    return mysqlClient
+        .getMasterClient()
+        .preparedQuery(UPDATE_ENVIRONMENT_ACCOUNT_STATUS)
+        .rxExecute(Tuple.wrap(params))
+        .map(
+            updateResult -> {
+              if (updateResult.rowCount() == 0) {
+                log.error("Update failed for environment account: {}", message.getId());
+                throw new GrpcException(OdinError.INTERNAL_SERVER_ERROR);
+              }
+              return updateResult;
+            })
+        .ignoreElement();
+  }
+
+  public Completable setEnvironmentInActiveForDeleteEnvironmentTask(long environmentAccountId) {
+    Object[] params = {
+      environmentAccountId, Action.DELETE_ENVIRONMENT.getName(), TaskStatus.SUCCESSFUL.getValue()
     };
     return mysqlClient
         .getMasterClient()
@@ -485,17 +632,15 @@ public class EnvironmentDao {
         .ignoreElement();
   }
 
-  public Completable updateEnvironmentTaskStatusByIds(
-      List<Long> envTaskIds, String reason, String status) {
-    JsonObject responseJson = new JsonObject().put("response", reason);
+  public Completable updateEnvironmentAccountStatusByIds(List<Long> envTaskIds, String status) {
     List<Completable> updateTasks =
         envTaskIds.stream()
             .map(
                 envTaskId -> {
-                  Object[] params = {status, responseJson.toString(), envTaskId};
+                  Object[] params = {status, envTaskId};
                   return mysqlClient
                       .getMasterClient()
-                      .preparedQuery(UPDATE_ENVIRONMENT_TASK_STATUS)
+                      .preparedQuery(UPDATE_ENVIRONMENT_ACCOUNT_STATUS)
                       .rxExecute(Tuple.wrap(params))
                       .flatMapCompletable(
                           updateResult -> {
@@ -512,41 +657,29 @@ public class EnvironmentDao {
     return Completable.mergeDelayError(updateTasks);
   }
 
-  public Single<EnvironmentTask> getEnvironmentTask(Long id) {
+  public Single<EnvironmentAccount> getEnvironmentAccount(Long id) {
     return mysqlClient
         .getSlaveClient()
-        .preparedQuery(GET_ENVIRONMENT_TASK)
+        .preparedQuery(GET_ENVIRONMENT_ACCOUNT)
         .rxExecute(Tuple.of(id))
         .map(
             rowSet -> {
               if (rowSet.size() == 0) {
-                log.error("Environment task with {} not found", id);
+                log.error("Environment account with {} not found", id);
                 throw ExceptionUtil.getException(OdinError.INTERNAL_SERVER_ERROR);
               }
               Row row = rowSet.iterator().next();
-              return EnvironmentTask.builder()
+              return EnvironmentAccount.builder()
                   .id(row.getLong(COL_ID))
-                  .envId(row.getLong(COL_ENVID))
+                  .environmentId(row.getLong(COL_ENVIRONMENT_ID))
                   .status(TaskStatus.valueOf(row.getString(COL_STATUS)))
-                  .actionId(row.getLong(COL_ACTION_ID))
-                  .version(row.getInteger(COL_VERSION))
+                  .action(row.getString(COL_ACTION))
                   .createdBy(row.getString(COL_CREATED_BY))
-                  .serviceAccountSnapshot(
-                      row.getJsonObject(COL_SERVICE_ACCOUNTS_SNAPSHOT).toString())
-                  .providerAccountName(row.getString(COL_PROVIDER_ACCOUNT_NAME))
-                  .response(Optional.ofNullable(row.getJsonObject(COL_RESPONSE).toString()))
+                  .accountData(row.getJsonObject(COL_ACCOUNT_DATA).toString())
+                  .accountName(row.getString(COL_PROVIDER_ACCOUNT_NAME))
                   .build();
             })
         .compose(SingleUtil.applyDebugLogs(log));
-  }
-
-  public Single<Long> getActionId(SqlConnection sqlConnection, Action action) {
-    return sqlConnection
-        .preparedQuery(GET_ACTION_ID)
-        .rxExecute(Tuple.of(action.name()))
-        .filter(rowSet -> rowSet.size() > 0)
-        .switchIfEmpty(Single.error(ExceptionUtil.getException(OdinError.INTERNAL_SERVER_ERROR)))
-        .map(rowSet -> rowSet.iterator().next().getLong("id"));
   }
 
   private Single<Environment> buildEnvironmentServiceWithAllComponents(
@@ -792,7 +925,7 @@ public class EnvironmentDao {
     Row firstRow = rowIterator.next();
     JsonObject jsonObject =
         new JsonObject()
-            .put("id", firstRow.getLong("env_id"))
+            .put("id", firstRow.getLong("environment_id"))
             .put("created_by", firstRow.getString("created_by"))
             .put("updated_by", firstRow.getString("updated_by"))
             .put("org_id", firstRow.getLong("org_id"))
@@ -822,7 +955,6 @@ public class EnvironmentDao {
 
     Environment.Builder environmentBuilder =
         JsonUtil.jsonToProtoBuilder(jsonObject, Environment.newBuilder());
-    environmentBuilder.setVersion(firstRow.getInteger(EnvironmentEntity.COL_VERSION));
     environmentBuilder.setStatus(EnvironmentUtil.getStatus(action, taskStatus));
     environmentBuilder.setCreatedAt(
         DateTimeUtil.getTimestampFromDateTime(firstRow.getLocalDateTime(CREATED_AT)));
@@ -833,8 +965,8 @@ public class EnvironmentDao {
 
   private JsonObject createAccountInformation(Row row) {
     return new JsonObject()
-        .put("provider_account_name", row.getString("provider_account_name"))
-        .put("service_accounts_snapshot", row.getJsonObject("service_accounts_snapshot"))
+        .put("account_name", row.getString("account_name"))
+        .put("account_data", row.getJsonObject("account_data"))
         .put(
             STATUS,
             EnvironmentUtil.getStatus(
@@ -846,7 +978,7 @@ public class EnvironmentDao {
     return buildEnvironmentBuilder(rowSet.iterator());
   }
 
-  private List<String> extractClusters(GetProviderAccountResponse providerAccountResponse) {
+  public List<String> extractClusters(GetProviderAccountResponse providerAccountResponse) {
     List<String> clusters = new ArrayList<>();
     for (ProviderServiceAccount providerServiceAccount :
         providerAccountResponse.getAccount().getServicesList()) {

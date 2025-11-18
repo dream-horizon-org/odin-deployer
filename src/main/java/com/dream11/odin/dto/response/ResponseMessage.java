@@ -20,6 +20,8 @@ public class ResponseMessage {
 
   ResponseMessageType type;
 
+  String executionId;
+
   TaskStatus status;
 
   @Optional String error;

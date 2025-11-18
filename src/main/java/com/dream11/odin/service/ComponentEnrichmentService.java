@@ -4,7 +4,7 @@ import com.dream11.odin.constant.Action;
 import com.dream11.odin.dao.ComponentTaskDao;
 import com.dream11.odin.dto.ComponentData;
 import com.dream11.odin.dto.ComponentDataStatus;
-import com.dream11.odin.dto.ComponentId;
+import com.dream11.odin.dto.ComponentIdentifier;
 import com.dream11.odin.dto.RequestMetaContext;
 import com.dream11.odin.util.ComponentUtil;
 import com.google.inject.Inject;
@@ -22,10 +22,11 @@ public class ComponentEnrichmentService {
 
   final ComponentTaskDao componentTaskDao;
 
-  public Single<Map<ComponentId, ComponentData>> enrichComponentsFromDatabase(
-      Map<ComponentId, ComponentData> componentDataMap, RequestMetaContext requestMetaContext) {
+  public Single<Map<ComponentIdentifier, ComponentData>> enrichComponentsFromDatabase(
+      Map<ComponentIdentifier, ComponentData> componentDataMap,
+      RequestMetaContext requestMetaContext) {
 
-    List<Single<AbstractMap.SimpleEntry<ComponentId, ComponentData>>> singles =
+    List<Single<AbstractMap.SimpleEntry<ComponentIdentifier, ComponentData>>> singles =
         componentDataMap.entrySet().stream()
             .map(
                 entry -> {

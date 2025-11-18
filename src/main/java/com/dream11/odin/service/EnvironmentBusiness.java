@@ -14,9 +14,12 @@ import com.dream11.odin.constant.Action;
 import com.dream11.odin.constant.ComponentStatus;
 import com.dream11.odin.constant.Constants;
 import com.dream11.odin.constant.EnvironmentStatus;
+import com.dream11.odin.constant.ExecTaskType;
 import com.dream11.odin.constant.ServiceStatus;
 import com.dream11.odin.constant.TaskStatus;
 import com.dream11.odin.dao.EnvironmentDao;
+import com.dream11.odin.dao.ExecutionTaskDao;
+import com.dream11.odin.dao.LockDao;
 import com.dream11.odin.dto.RequestMetaContext;
 import com.dream11.odin.dto.UserDetails;
 import com.dream11.odin.dto.constants.RequestMessageType;
@@ -24,8 +27,8 @@ import com.dream11.odin.dto.request.RequestMessage;
 import com.dream11.odin.dto.v1.AccountInformation;
 import com.dream11.odin.dto.v1.Environment;
 import com.dream11.odin.dto.v1.EnvironmentSummary;
+import com.dream11.odin.entity.EnvironmentAccount;
 import com.dream11.odin.entity.EnvironmentEntity;
-import com.dream11.odin.entity.EnvironmentTask;
 import com.dream11.odin.error.OdinError;
 import com.dream11.odin.grpc.environment.CreateEnvironmentResponse;
 import com.dream11.odin.grpc.environment.DeleteEnvironmentResponse;
@@ -56,6 +59,7 @@ import io.reactivex.Flowable;
 import io.reactivex.Maybe;
 import io.reactivex.Observable;
 import io.reactivex.Single;
+import io.vertx.core.json.JsonObject;
 import io.vertx.reactivex.core.RxHelper;
 import io.vertx.reactivex.core.Vertx;
 import java.util.ArrayList;
@@ -78,6 +82,8 @@ public class EnvironmentBusiness {
   final AppConfig appConfig;
 
   final EnvironmentDao environmentDao;
+  final LockDao lockDao;
+  final ExecutionTaskDao executionTaskDao;
 
   final MessageProducer<String> messageProducer;
 
@@ -147,6 +153,7 @@ public class EnvironmentBusiness {
 
   public Flowable<CreateEnvironmentResponse> createEnvironment(
       String environmentName, List<String> accounts, UserDetails userDetails) {
+
     Validator validator = new Validator();
     validator.add(
         Arrays.asList(
@@ -165,10 +172,10 @@ public class EnvironmentBusiness {
                             .createdBy(userDetails.getUserId())
                             .build())
                     .flatMapMaybe(
-                        env -> environmentDao.createEnvAndEnvTask(env, providerAccountResponses))
+                        env -> environmentDao.createEnvAndEnvAccount(env, providerAccountResponses))
                     .switchIfEmpty(Maybe.just(List.of(Optional.empty())))
                     .flatMapPublisher(
-                        envTasks ->
+                        envAccs ->
                             placeholderService
                                 .replacePlaceholdersInEnvironment(
                                     providerAccountResponses,
@@ -182,7 +189,7 @@ public class EnvironmentBusiness {
                                 .flatMapPublisher(
                                     updatedProviderAccounts ->
                                         provisionEnvironmentAndFetchStatus(
-                                            envTasks,
+                                            envAccs,
                                             environmentName,
                                             updatedProviderAccounts,
                                             userDetails.getOrgId())))
@@ -220,36 +227,31 @@ public class EnvironmentBusiness {
   }
 
   private Flowable<CreateEnvironmentResponse> provisionEnvironmentAndFetchStatus(
-      List<Optional<EnvironmentTask>> environmentTask,
+      List<Optional<EnvironmentAccount>> environmentAccount,
       String environmentName,
       List<GetProviderAccountResponse> providerAccountResponses,
       Long orgId) {
 
     long environmentId = -1;
 
-    for (Optional<EnvironmentTask> envTask : environmentTask) {
-      if (envTask.isPresent()) {
-        EnvironmentTask task = envTask.get();
+    for (Optional<EnvironmentAccount> envAccount : environmentAccount) {
+      if (envAccount.isPresent()) {
+        EnvironmentAccount acc = envAccount.get();
         // pushing to SQS if the task is marked IN_PROGRESS
-        if (task.status() == TaskStatus.IN_PROGRESS) {
+        if (acc.status() == TaskStatus.IN_PROGRESS) {
           GetProviderAccountResponse providerAccountResponse =
               providerAccountResponses.stream()
-                  .filter(resp -> resp.getAccount().getName().equals(task.providerAccountName()))
+                  .filter(resp -> resp.getAccount().getName().equals(acc.accountName()))
                   .findFirst()
                   .orElseThrow(
                       () ->
                           ExceptionUtil.getException(
-                              OdinError.PROVIDER_NOT_FOUND_FOR_ENV, task.providerAccountName()));
+                              OdinError.PROVIDER_NOT_FOUND_FOR_ENV, acc.accountName()));
 
           pushToSqs(
-              environmentName,
-              providerAccountResponse,
-              task.id(),
-              Action.CREATE_ENVIRONMENT,
-              RequestMessageType.NAMESPACE,
-              orgId);
+              environmentName, providerAccountResponse, acc.id(), Action.CREATE_ENVIRONMENT, orgId);
 
-          environmentId = task.envId();
+          environmentId = acc.environmentId();
         }
       }
     }
@@ -306,23 +308,40 @@ public class EnvironmentBusiness {
   private void pushToSqs(
       String environmentName,
       GetProviderAccountResponse providerAccountResponse,
-      long environmentTaskId,
+      long environmentAccountId,
       Action environmentAction,
-      RequestMessageType requestMessageType,
       Long orgId) {
-    SingleUtil.toSingle(
-            messageProducer.send(
-                ApplicationUtil.compressAndEncode(
-                    new RequestMessage(
-                            environmentName,
-                            providerAccountResponse,
-                            environmentAction,
-                            environmentTaskId,
-                            requestMessageType,
-                            orgId,
-                            ApplicationContext.getTraceId())
-                        .createRequest()
-                        .toString())))
+    JsonObject requestJson =
+        new RequestMessage(
+                environmentName,
+                providerAccountResponse,
+                environmentAction,
+                environmentAccountId,
+                RequestMessageType.NAMESPACE,
+                orgId,
+                ApplicationContext.getTraceId())
+            .createRequest();
+
+    String finalMessage = requestJson.toString();
+    String encodedMessage = ApplicationUtil.compressAndEncode(finalMessage);
+
+    // Insert into execution_tasks table before pushing to SQS
+    executionTaskDao
+        .createExecutionTask(
+            environmentAction.getName(),
+            orgId,
+            TaskStatus.IN_PROGRESS.getValue(),
+            ExecTaskType.ENVIRONMENT.getValue(),
+            ApplicationContext.getTraceId(),
+            finalMessage,
+            ApplicationContext.getUserDetails().getUserId())
+        .andThen(SingleUtil.toSingle(messageProducer.send(encodedMessage)).ignoreElement())
+        .doOnError(
+            err -> {
+              log.error("Error while inserting execution task {}", err.getMessage(), err);
+              throw new GrpcException(OdinError.INTERNAL_SERVER_ERROR);
+            })
+        .onErrorComplete()
         .subscribe();
   }
 
@@ -340,13 +359,13 @@ public class EnvironmentBusiness {
         .validateAll()
         .andThen(
             environmentDao
-                .getLatestEnvironmentTasks(environmentName, orgId)
+                .getEnvironmentAccounts(environmentName, orgId)
                 .map(
-                    environmentTasks ->
+                    environmentAccounts ->
                         Pair.of(
-                            environmentTasks.get(0).envId(),
-                            environmentTasks.stream()
-                                .map(EnvironmentTask::serviceAccountSnapshot)
+                            environmentAccounts.get(0).environmentId(),
+                            environmentAccounts.stream()
+                                .map(EnvironmentAccount::accountData)
                                 .map(
                                     snapshot -> {
                                       GetProviderAccountResponse.Builder
@@ -364,17 +383,18 @@ public class EnvironmentBusiness {
                 .flatMapPublisher(
                     pair ->
                         getEnvironmentEntity(environmentDao.getEnvironmentById(pair.getLeft()))
-                            .flatMap(
+                            .flatMapMaybe(
                                 environmentEntity ->
-                                    environmentDao.createEnvironmentTasks(
+                                    environmentDao.updateEnvironmentAccount(
                                         pair.getRight(),
                                         environmentEntity,
                                         Action.DELETE_ENVIRONMENT))
                             .flatMapPublisher(
-                                envTasks -> {
-                                  for (Optional<EnvironmentTask> envTask : envTasks) {
-                                    envTask.ifPresent(
-                                        environmentTask -> envTaskIds.add(environmentTask.id()));
+                                envAccs -> {
+                                  for (Optional<EnvironmentAccount> envAcc : envAccs) {
+                                    envAcc.ifPresent(
+                                        environmentAccount ->
+                                            envTaskIds.add(environmentAccount.id()));
                                   }
 
                                   Flowable<List<UndeployServiceResponse>> undeployServicesFlowable =
@@ -396,25 +416,43 @@ public class EnvironmentBusiness {
                                                                 .equalsIgnoreCase(
                                                                     TaskStatus.SUCCESSFUL
                                                                         .getValue()))) {
-                                                  envTasks.forEach(
-                                                      environmentTask ->
-                                                          pushToSqs(
-                                                              environmentName,
-                                                              pair.getRight().stream()
-                                                                  .filter(
-                                                                      resp ->
-                                                                          resp.getAccount()
-                                                                              .getName()
-                                                                              .equals(
-                                                                                  environmentTask
-                                                                                      .get()
-                                                                                      .providerAccountName()))
-                                                                  .findFirst()
-                                                                  .get(),
-                                                              environmentTask.get().id(),
-                                                              Action.DELETE_ENVIRONMENT,
-                                                              RequestMessageType.NAMESPACE,
-                                                              orgId));
+                                                  environmentDao
+                                                      .filterAndUpdateEnvironmentAccounts(
+                                                          envAccs,
+                                                          pair.getRight(),
+                                                          Action.DELETE_ENVIRONMENT.name())
+                                                      .subscribe(
+                                                          nonEmptyClusterAccs -> {
+                                                            for (EnvironmentAccount acc :
+                                                                nonEmptyClusterAccs) {
+                                                              GetProviderAccountResponse resp =
+                                                                  pair.getRight().stream()
+                                                                      .filter(
+                                                                          r ->
+                                                                              r.getAccount()
+                                                                                  .getName()
+                                                                                  .equals(
+                                                                                      acc
+                                                                                          .accountName()))
+                                                                      .findFirst()
+                                                                      .orElse(null);
+                                                              if (resp != null) {
+                                                                pushToSqs(
+                                                                    environmentName,
+                                                                    resp,
+                                                                    acc.id(),
+                                                                    Action.DELETE_ENVIRONMENT,
+                                                                    orgId);
+                                                              }
+                                                            }
+                                                          },
+                                                          err -> {
+                                                            log.error(
+                                                                "filter and update environment accounts failed",
+                                                                err);
+                                                            throw new GrpcException(
+                                                                OdinError.INTERNAL_SERVER_ERROR);
+                                                          });
                                                 } else if (undeployServiceResponses.stream()
                                                     .anyMatch(
                                                         undeployServiceResponse ->
@@ -425,14 +463,8 @@ public class EnvironmentBusiness {
                                                                 .equalsIgnoreCase(
                                                                     TaskStatus.FAILED
                                                                         .getValue()))) {
-                                                  // Update env status and throw env deletion failed
-                                                  // error
-                                                  updateEnvState(
-                                                          orgId,
-                                                          environmentName,
-                                                          envTaskIds,
-                                                          TaskStatus.FAILED,
-                                                          Constants.SERVICES_UNDEPLOY_FAILED)
+                                                  updateEnvAccountAsFailed(
+                                                          orgId, environmentName, envTaskIds)
                                                       .andThen(
                                                           Flowable.error(
                                                               ExceptionUtil.getException(
@@ -454,22 +486,19 @@ public class EnvironmentBusiness {
                                 })));
   }
 
-  private Completable updateEnvState(
-      Long orgId,
-      String environmentName,
-      List<Long> envTaskIds,
-      TaskStatus taskStatus,
-      String reason) {
+  private Completable updateEnvAccountAsFailed(
+      Long orgId, String environmentName, List<Long> envTaskIds) {
     return environmentDao
         .getEnvironmentByNameWithAllFields(orgId, environmentName)
         .flatMapCompletable(
             environment ->
                 environmentDao
                     .updateEnvironment(
-                        orgId, environment.toBuilder().setStatus(taskStatus.getValue()).build())
+                        orgId,
+                        environment.toBuilder().setStatus(TaskStatus.FAILED.getValue()).build())
                     .andThen(
-                        environmentDao.updateEnvironmentTaskStatusByIds(
-                            envTaskIds, reason, TaskStatus.FAILED.getValue())));
+                        environmentDao.updateEnvironmentAccountStatusByIds(
+                            envTaskIds, TaskStatus.FAILED.getValue())));
   }
 
   private Single<EnvironmentEntity> getEnvironmentEntity(Single<Environment> environment) {

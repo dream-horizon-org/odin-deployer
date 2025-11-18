@@ -9,7 +9,7 @@ import com.dream11.odin.constant.ServiceOperations;
 import com.dream11.odin.dao.ComponentTaskDao;
 import com.dream11.odin.dao.ServiceTaskDao;
 import com.dream11.odin.dto.ComponentData;
-import com.dream11.odin.dto.ComponentId;
+import com.dream11.odin.dto.ComponentIdentifier;
 import com.dream11.odin.dto.RequestMetaContext;
 import com.dream11.odin.dto.UserDetails;
 import com.dream11.odin.dto.requestqueue.ComponentAction;
@@ -192,11 +192,12 @@ public abstract class Operation {
 
     final RequestMetaContext requestMetaContext = requestMetaContextBuilder.build();
 
-    final ComponentId componentId =
-        ComponentId.builder().componentName(componentName).action(Action.OPERATE).build();
+    final ComponentIdentifier componentIdentifier =
+        ComponentIdentifier.builder().componentName(componentName).action(Action.OPERATE).build();
 
-    Map<ComponentId, ComponentData> componentDataMap =
-        Map.of(componentId, componentDataBuilder.operationConfig(request.getConfig()).build());
+    Map<ComponentIdentifier, ComponentData> componentDataMap =
+        Map.of(
+            componentIdentifier, componentDataBuilder.operationConfig(request.getConfig()).build());
 
     return validator
         .validateAll()
@@ -219,7 +220,7 @@ public abstract class Operation {
                       log.info(
                           "Updated the componentMap using interceptors and placeholders for env {}, proceeding",
                           environment.getName());
-                      return updatedComponentDataMap.get(componentId);
+                      return updatedComponentDataMap.get(componentIdentifier);
                     }));
   }
 
@@ -264,9 +265,9 @@ public abstract class Operation {
                       }
 
                       // Process component action
-                      Map<ComponentId, ComponentData> componentDataMap =
+                      Map<ComponentIdentifier, ComponentData> componentDataMap =
                           Map.of(
-                              ComponentId.builder()
+                              ComponentIdentifier.builder()
                                   .componentName(newComponentAction.getComponentName())
                                   .action(Action.OPERATE)
                                   .build(),

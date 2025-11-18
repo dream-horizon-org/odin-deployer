@@ -5,200 +5,80 @@
 
 
 --
--- start dump : rule_input
+-- start dump : environment_service_component
 --
 
-CREATE TABLE `rule_input` (
+CREATE TABLE `environment_service_component` (
   `id` bigint NOT NULL AUTO_INCREMENT,
-  `version` int NOT NULL,
-  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `rule_id` bigint NOT NULL,
-  `rule_input_source_id` bigint NOT NULL,
-  PRIMARY KEY (`id`),
-  KEY `rule_id` (`rule_id`),
-  KEY `rule_input_source_id` (`rule_input_source_id`),
-  CONSTRAINT `rule_input_ibfk_1` FOREIGN KEY (`rule_id`) REFERENCES `rules` (`id`),
-  CONSTRAINT `rule_input_ibfk_2` FOREIGN KEY (`rule_input_source_id`) REFERENCES `rule_input_source` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-
---
--- end dump : rule_input
---
-
-
-
---
--- start dump : rule_input_source
---
-
-CREATE TABLE `rule_input_source` (
-  `id` bigint NOT NULL AUTO_INCREMENT,
-  `version` int NOT NULL,
-  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `name` varchar(50) NOT NULL,
-  `input_schema` json NOT NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `name` (`name`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-
---
--- end dump : rule_input_source
---
-
-
-
---
--- start dump : component_validate_task
---
-
-CREATE TABLE `component_validate_task` (
-  `id` bigint NOT NULL AUTO_INCREMENT,
-  `service_validate_task_id` bigint NOT NULL,
-  `component_name` varchar(256) NOT NULL,
+  `environment_service_id` bigint NOT NULL,
+  `action` varchar(50) NOT NULL,
+  `name` varchar(256) NOT NULL,
   `status` varchar(20) NOT NULL,
   `config` json NOT NULL,
-  `config_hash` text NOT NULL,
-  `version` int NOT NULL DEFAULT '1',
-  `response` json DEFAULT NULL,
+  `account_data` json DEFAULT NULL,
   `created_by` varchar(50) NOT NULL,
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_by` varchar(50) NOT NULL,
   `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `service_account_snapshot` json DEFAULT NULL,
   PRIMARY KEY (`id`),
-  KEY `component_name` (`component_name`),
-  KEY `service_task_component_idx` (`service_validate_task_id`,`component_name`),
-  CONSTRAINT `component_validate_task_ibfk_1` FOREIGN KEY (`service_validate_task_id`) REFERENCES `service_validate_task` (`id`)
+  UNIQUE KEY `environment_service_id` (`environment_service_id`,`name`),
+  KEY `name` (`name`),
+  KEY `service_component_idx` (`environment_service_id`,`name`),
+  CONSTRAINT `environment_service_component_ibfk_1` FOREIGN KEY (`environment_service_id`) REFERENCES `environment_service` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 --
--- end dump : component_validate_task
+-- end dump : environment_service_component
 --
 
 
 
 --
--- start dump : service_cache
+-- start dump : environment_lock
 --
 
-CREATE TABLE `service_cache` (
-  `id` int NOT NULL,
-  `name` varchar(255) NOT NULL,
-  `version` varchar(50) NOT NULL,
-  `description` text,
-  `created_by` varchar(255) NOT NULL,
-  `updated_by` varchar(255) DEFAULT NULL,
-  `created_at` timestamp NOT NULL,
-  `updated_at` timestamp NULL DEFAULT NULL,
-  `tags` json DEFAULT NULL,
-  `labels` text,
-  `org_id` int NOT NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `unique_name_version_orgid` (`name`,`version`,`org_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-
---
--- end dump : service_cache
---
-
-
-
---
--- start dump : scaler_lock_tracker
---
-
-CREATE TABLE `scaler_lock_tracker` (
-  `id` int NOT NULL AUTO_INCREMENT,
-  `service_name` varchar(255) NOT NULL,
-  `component_name` varchar(255) NOT NULL,
-  `env` varchar(255) NOT NULL,
-  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `service_name` (`service_name`,`component_name`,`env`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-
---
--- end dump : scaler_lock_tracker
---
-
-
-
---
--- start dump : component_task
---
-
-CREATE TABLE `component_task` (
+CREATE TABLE `environment_lock` (
   `id` bigint NOT NULL AUTO_INCREMENT,
-  `service_task_id` bigint NOT NULL,
-  `action_id` bigint NOT NULL,
-  `component_name` varchar(256) NOT NULL,
-  `status` varchar(20) NOT NULL,
-  `config` json NOT NULL,
-  `config_hash` text NOT NULL,
-  `version` int NOT NULL DEFAULT '1',
-  `response` json DEFAULT NULL,
+  `environment_id` bigint NOT NULL,
+  `shared_count` int NOT NULL DEFAULT '0',
+  `exclusive` tinyint(1) NOT NULL DEFAULT '0',
   `created_by` varchar(50) NOT NULL,
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_by` varchar(50) NOT NULL,
   `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `service_account_snapshot` json DEFAULT NULL,
   PRIMARY KEY (`id`),
-  KEY `action_id` (`action_id`),
-  KEY `component_name` (`component_name`),
-  KEY `service_task_component_idx` (`service_task_id`,`component_name`),
-  CONSTRAINT `component_task_ibfk_1` FOREIGN KEY (`service_task_id`) REFERENCES `service_task` (`id`),
-  CONSTRAINT `component_task_ibfk_2` FOREIGN KEY (`action_id`) REFERENCES `action` (`id`)
+  UNIQUE KEY `uniq_env_lock` (`environment_id`),
+  CONSTRAINT `environment_lock_ibfk_1` FOREIGN KEY (`environment_id`) REFERENCES `environment` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 --
--- end dump : component_task
+-- end dump : environment_lock
 --
 
 
 
 --
--- start dump : rules
+-- start dump : execution_tasks
 --
 
-CREATE TABLE `rules` (
+CREATE TABLE `execution_tasks` (
   `id` bigint NOT NULL AUTO_INCREMENT,
-  `version` int NOT NULL,
-  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `action` varchar(50) NOT NULL,
   `org_id` bigint NOT NULL,
-  `query` text NOT NULL,
-  `message` text NOT NULL,
-  `action_id` bigint NOT NULL,
-  PRIMARY KEY (`id`),
-  KEY `org_action` (`org_id`,`action_id`)
+  `response` json NOT NULL DEFAULT (json_object()),
+  `status` varchar(20) NOT NULL,
+  `entity` varchar(20) NOT NULL,
+  `execution_id` varchar(255) NOT NULL DEFAULT '',
+  `payload` json NOT NULL DEFAULT (json_object()),
+  `created_by` varchar(50) NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_by` varchar(50) NOT NULL,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 --
--- end dump : rules
---
-
-
-
---
--- start dump : component
---
-
-CREATE TABLE `component` (
-  `id` bigint NOT NULL AUTO_INCREMENT,
-  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `component_type` varchar(256) NOT NULL,
-  `component_version` varchar(50) NOT NULL,
-  `org_id` bigint NOT NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `component_type` (`component_type`,`component_version`),
-  KEY `org_component_idx` (`org_id`,`component_type`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-
---
--- end dump : component
+-- end dump : execution_tasks
 --
 
 
@@ -209,16 +89,13 @@ CREATE TABLE `component` (
 
 CREATE TABLE `environment` (
   `id` bigint NOT NULL AUTO_INCREMENT,
-  `version` int NOT NULL DEFAULT '1',
   `org_id` bigint NOT NULL,
   `name` varchar(256) NOT NULL,
-  `auto_deletion_time` timestamp NOT NULL,
   `is_active` tinyint(1) NOT NULL DEFAULT '1',
   `created_by` varchar(50) NOT NULL,
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_by` varchar(50) NOT NULL,
   `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `provisioning_type` varchar(50) DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `org_id` (`org_id`,`name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
@@ -230,24 +107,58 @@ CREATE TABLE `environment` (
 
 
 --
--- start dump : provisioning_type
+-- start dump : environment_account
 --
 
-CREATE TABLE `provisioning_type` (
+CREATE TABLE `environment_account` (
   `id` bigint NOT NULL AUTO_INCREMENT,
-  `org_id` bigint NOT NULL,
-  `name` varchar(20) NOT NULL,
+  `environment_id` bigint NOT NULL,
+  `status` varchar(20) NOT NULL,
+  `action` varchar(50) NOT NULL,
+  `accounts_data` json DEFAULT NULL,
+  `account_data` json DEFAULT NULL,
+  `account_name` varchar(50) NOT NULL,
   `created_by` varchar(50) NOT NULL,
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_by` varchar(50) NOT NULL,
   `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `is_default` tinyint(1) NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
-  UNIQUE KEY `org_id` (`org_id`,`name`)
+  KEY `environment_id` (`environment_id`),
+  CONSTRAINT `environment_account_ibfk_1` FOREIGN KEY (`environment_id`) REFERENCES `environment` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 --
--- end dump : provisioning_type
+-- end dump : environment_account
+--
+
+
+
+--
+-- start dump : environment_service_component_lock
+--
+
+CREATE TABLE `environment_service_component_lock` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `env_id` bigint NOT NULL,
+  `environment_service_id` bigint NOT NULL,
+  `environment_service_component_id` bigint NOT NULL,
+  `shared_count` int NOT NULL DEFAULT '0',
+  `exclusive` tinyint(1) NOT NULL DEFAULT '0',
+  `created_by` varchar(50) NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_by` varchar(50) NOT NULL,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uniq_env_service_component_lock` (`env_id`,`environment_service_id`,`environment_service_component_id`),
+  KEY `environment_service_id` (`environment_service_id`),
+  KEY `environment_service_component_id` (`environment_service_component_id`),
+  CONSTRAINT `environment_service_component_lock_ibfk_1` FOREIGN KEY (`env_id`) REFERENCES `environment` (`id`),
+  CONSTRAINT `environment_service_component_lock_ibfk_2` FOREIGN KEY (`environment_service_id`) REFERENCES `environment_service` (`id`),
+  CONSTRAINT `environment_service_component_lock_ibfk_3` FOREIGN KEY (`environment_service_component_id`) REFERENCES `environment_service_component` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+--
+-- end dump : environment_service_component_lock
 --
 
 
@@ -259,7 +170,6 @@ CREATE TABLE `provisioning_type` (
 CREATE TABLE `action` (
   `id` bigint NOT NULL AUTO_INCREMENT,
   `name` varchar(50) NOT NULL,
-  `version` int NOT NULL DEFAULT '1',
   `created_by` varchar(50) NOT NULL,
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_by` varchar(50) NOT NULL,
@@ -275,87 +185,76 @@ CREATE TABLE `action` (
 
 
 --
--- start dump : service_task
+-- start dump : environment_service_lock
 --
 
-CREATE TABLE `service_task` (
+CREATE TABLE `environment_service_lock` (
   `id` bigint NOT NULL AUTO_INCREMENT,
-  `action_id` bigint NOT NULL,
+  `environment_id` bigint NOT NULL,
+  `environment_service_id` bigint NOT NULL,
+  `shared_count` int NOT NULL DEFAULT '0',
+  `exclusive` tinyint(1) NOT NULL DEFAULT '0',
+  `created_by` varchar(50) NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_by` varchar(50) NOT NULL,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uniq_env_service_lock` (`environment_id`,`environment_service_id`),
+  KEY `environment_service_id` (`environment_service_id`),
+  CONSTRAINT `environment_service_lock_ibfk_1` FOREIGN KEY (`environment_id`) REFERENCES `environment` (`id`),
+  CONSTRAINT `environment_service_lock_ibfk_2` FOREIGN KEY (`environment_service_id`) REFERENCES `environment_service` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+--
+-- end dump : environment_service_lock
+--
+
+
+
+--
+-- start dump : auth_provider
+--
+
+CREATE TABLE `auth_provider` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `org_id` bigint NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `type` varchar(50) NOT NULL,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `provider_details` json NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `org_id` (`org_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+--
+-- end dump : auth_provider
+--
+
+
+
+--
+-- start dump : environment_service
+--
+
+CREATE TABLE `environment_service` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `action` varchar(50) NOT NULL,
   `config` json NOT NULL,
-  `service_config_hash` varchar(256) NOT NULL,
-  `env_id` bigint NOT NULL,
+  `environment_id` bigint NOT NULL,
   `name` varchar(256) NOT NULL,
-  `service_version` varchar(100) DEFAULT NULL,
   `status` varchar(50) NOT NULL,
-  `version` int NOT NULL DEFAULT '1',
   `created_by` varchar(50) NOT NULL,
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_by` varchar(50) NOT NULL,
   `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `trace_id` varchar(255) DEFAULT '',
   PRIMARY KEY (`id`),
-  KEY `env_id` (`env_id`,`status`),
-  KEY `env_id_2` (`env_id`,`name`),
-  CONSTRAINT `service_task_ibfk_1` FOREIGN KEY (`env_id`) REFERENCES `environment` (`id`)
+  UNIQUE KEY `unique_env_name` (`environment_id`,`name`),
+  KEY `environment_id` (`environment_id`,`status`),
+  CONSTRAINT `environment_service_ibfk_1` FOREIGN KEY (`environment_id`) REFERENCES `environment` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 --
--- end dump : service_task
+-- end dump : environment_service
 --
 
 
-
---
--- start dump : environment_task
---
-
-CREATE TABLE `environment_task` (
-  `id` bigint NOT NULL AUTO_INCREMENT,
-  `version` int NOT NULL,
-  `env_id` bigint NOT NULL,
-  `action_id` bigint NOT NULL,
-  `status` varchar(40) NOT NULL,
-  `provider_account_name` varchar(20) NOT NULL,
-  `service_accounts_snapshot` json NOT NULL,
-  `response` json DEFAULT NULL,
-  `created_by` varchar(50) NOT NULL,
-  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_by` varchar(50) NOT NULL,
-  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `trace_id` varchar(255) DEFAULT '',
-  PRIMARY KEY (`id`),
-  KEY `env` (`env_id`,`status`),
-  CONSTRAINT `environment_task_ibfk_1` FOREIGN KEY (`env_id`) REFERENCES `environment` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-
---
--- end dump : environment_task
---
-
-
-
---
--- start dump : service_validate_task
---
-
-CREATE TABLE `service_validate_task` (
-  `id` bigint NOT NULL AUTO_INCREMENT,
-  `config` json NOT NULL,
-  `service_config_hash` varchar(256) NOT NULL,
-  `name` varchar(256) NOT NULL,
-  `service_version` varchar(100) NOT NULL,
-  `status` varchar(50) NOT NULL,
-  `version` int NOT NULL DEFAULT '1',
-  `created_by` varchar(50) NOT NULL,
-  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_by` varchar(50) NOT NULL,
-  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `trace_id` varchar(255) DEFAULT '',
-  PRIMARY KEY (`id`),
-  KEY `status` (`status`),
-  KEY `name` (`name`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-
---
--- end dump : service_validate_task
---

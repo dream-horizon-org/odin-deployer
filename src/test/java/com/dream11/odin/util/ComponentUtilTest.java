@@ -12,7 +12,7 @@ import com.dream11.odin.constant.Action;
 import com.dream11.odin.constant.Constants;
 import com.dream11.odin.constant.TaskStatus;
 import com.dream11.odin.dto.ComponentData;
-import com.dream11.odin.dto.ComponentId;
+import com.dream11.odin.dto.ComponentIdentifier;
 import com.dream11.odin.dto.ServiceData;
 import com.dream11.odin.dto.UserDetails;
 import com.dream11.odin.dto.requestqueue.ComponentAction;
@@ -57,24 +57,24 @@ class ComponentUtilTest {
     vertx.runOnContext(
         __ -> {
           // Arrange
-          Map<ComponentId, ComponentData> componentDataMap = new HashMap<>();
+          Map<ComponentIdentifier, ComponentData> componentDataMap = new HashMap<>();
           ServiceTaskEntity serviceTaskEntity = ServiceTaskEntity.builder().build();
           List<ComponentAction> componentActions = new ArrayList<>();
           UserDetails userDetails = UserDetails.builder().build();
 
-          // Mock the ComponentData and ComponentId
+          // Mock the ComponentData and ComponentIdentifier
           ComponentData componentData =
               ComponentData.builder()
                   .componentDefinition(
                       ComponentDefinition.newBuilder().setName("testComponentName").build())
                   .componentProvisioningConfig(ComponentProvisioningConfig.newBuilder().build())
                   .build();
-          ComponentId componentId =
-              ComponentId.builder()
+          ComponentIdentifier componentIdentifier =
+              ComponentIdentifier.builder()
                   .componentName("testComponentName")
                   .action(Action.DEPLOY)
                   .build();
-          componentDataMap.put(componentId, componentData);
+          componentDataMap.put(componentIdentifier, componentData);
 
           // Mock the ComponentAction and Stage
           ComponentAction componentAction =
@@ -135,12 +135,18 @@ class ComponentUtilTest {
     vertx.runOnContext(
         __ -> {
           // Mock input data
-          Map<ComponentId, ComponentData> componentDataMap = new HashMap<>();
+          Map<ComponentIdentifier, ComponentData> componentDataMap = new HashMap<>();
           AccountInformation environmentProviderAccounts = AccountInformation.newBuilder().build();
-          ComponentId componentId1 =
-              ComponentId.builder().componentName("testComponent1").action(Action.DEPLOY).build();
-          ComponentId componentId2 =
-              ComponentId.builder().componentName("testComponent2").action(Action.VALIDATE).build();
+          ComponentIdentifier componentIdentifier1 =
+              ComponentIdentifier.builder()
+                  .componentName("testComponent1")
+                  .action(Action.DEPLOY)
+                  .build();
+          ComponentIdentifier componentIdentifier2 =
+              ComponentIdentifier.builder()
+                  .componentName("testComponent2")
+                  .action(Action.VALIDATE)
+                  .build();
           ComponentData componentData1 =
               ComponentData.builder()
                   .componentDefinition(
@@ -155,8 +161,8 @@ class ComponentUtilTest {
                   .componentProvisioningConfig(ComponentProvisioningConfig.newBuilder().build())
                   .environmentProviderAccounts(environmentProviderAccounts)
                   .build();
-          componentDataMap.put(componentId1, componentData1);
-          componentDataMap.put(componentId2, componentData2);
+          componentDataMap.put(componentIdentifier1, componentData1);
+          componentDataMap.put(componentIdentifier2, componentData2);
 
           Map<String, Stage> componentsStageMap = new HashMap<>();
 
@@ -233,8 +239,8 @@ class ComponentUtilTest {
   @Test
   void testGetComponentAction() {
     // Mock input data
-    ComponentId componentId =
-        ComponentId.builder().componentName("ComponentName").action(Action.DEPLOY).build();
+    ComponentIdentifier componentIdentifier =
+        ComponentIdentifier.builder().componentName("ComponentName").action(Action.DEPLOY).build();
     List<ComponentAction> componentActions = new ArrayList<>();
     componentActions.add(
         ComponentAction.builder()
@@ -244,7 +250,7 @@ class ComponentUtilTest {
 
     // Call the method
     ComponentAction componentAction =
-        ComponentUtil.getComponentAction(componentId, componentActions);
+        ComponentUtil.getComponentAction(componentIdentifier, componentActions);
 
     // Assertions
     assertThat(componentAction).isNotNull();
@@ -255,9 +261,9 @@ class ComponentUtilTest {
   @Test
   void testGetComponentDependencies() {
     // Mock input data
-    ComponentId componentId =
-        ComponentId.builder().componentName("ComponentName").action(Action.DEPLOY).build();
-    Map<ComponentId, ComponentData> componentDataMap = new HashMap<>();
+    ComponentIdentifier componentIdentifier =
+        ComponentIdentifier.builder().componentName("ComponentName").action(Action.DEPLOY).build();
+    Map<ComponentIdentifier, ComponentData> componentDataMap = new HashMap<>();
 
     ComponentDefinition componentDefinition =
         ComponentDefinition.newBuilder()
@@ -272,7 +278,7 @@ class ComponentUtilTest {
             .componentProvisioningConfig(componentProvisioningConfig)
             .build();
     componentDataMap.put(
-        ComponentId.builder().componentName("ComponentName").action(Action.DEPLOY).build(),
+        ComponentIdentifier.builder().componentName("ComponentName").action(Action.DEPLOY).build(),
         componentData);
 
     List<ComponentAction> componentActions = new ArrayList<>();
@@ -291,7 +297,8 @@ class ComponentUtilTest {
 
     // Call the method
     List<Integer> componentDependencies =
-        ComponentUtil.getComponentDependencies(componentId, componentDataMap, componentActions);
+        ComponentUtil.getComponentDependencies(
+            componentIdentifier, componentDataMap, componentActions);
 
     // Assertions
     assertThat(componentDependencies).isNotNull();
@@ -506,7 +513,7 @@ class ComponentUtilTest {
     List<AccountInformation> accountInformationList = List.of(accountInformation);
 
     // Call the method
-    Map<ComponentId, ComponentData> result =
+    Map<ComponentIdentifier, ComponentData> result =
         ComponentUtil.getAllComponentsData(
             serviceData,
             accountInformationList,
@@ -517,19 +524,19 @@ class ComponentUtilTest {
     assertEquals(2, result.size());
     assertTrue(
         result.containsKey(
-            ComponentId.builder().componentName("component1").action(action).build()));
+            ComponentIdentifier.builder().componentName("component1").action(action).build()));
     assertTrue(
         result.containsKey(
-            ComponentId.builder().componentName("component2").action(action).build()));
+            ComponentIdentifier.builder().componentName("component2").action(action).build()));
     assertEquals(
         component1,
         result
-            .get(ComponentId.builder().componentName("component1").action(action).build())
+            .get(ComponentIdentifier.builder().componentName("component1").action(action).build())
             .getComponentDefinition());
     assertEquals(
         accountInformation,
         result
-            .get(ComponentId.builder().componentName("component1").action(action).build())
+            .get(ComponentIdentifier.builder().componentName("component1").action(action).build())
             .getEnvironmentProviderAccounts());
   }
 
@@ -540,12 +547,12 @@ class ComponentUtilTest {
     Action action = Action.DEPLOY;
 
     // Call the method
-    ComponentId componentId = ComponentUtil.buildComponentId(componentName, action);
+    ComponentIdentifier componentIdentifier = ComponentUtil.buildComponentId(componentName, action);
 
     // Assertions
-    assertThat(componentId).isNotNull();
-    assertEquals(componentName, componentId.getComponentName());
-    assertEquals(action, componentId.getAction());
+    assertThat(componentIdentifier).isNotNull();
+    assertEquals(componentName, componentIdentifier.getComponentName());
+    assertEquals(action, componentIdentifier.getAction());
   }
 
   @Test

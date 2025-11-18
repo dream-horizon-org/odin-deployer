@@ -3,6 +3,7 @@ package com.dream11.odin.service;
 import com.dream11.odin.config.AppConfig;
 import com.dream11.odin.constant.Action;
 import com.dream11.odin.constant.TaskStatus;
+import com.dream11.odin.dao.ServiceComponentDao;
 import com.dream11.odin.dao.ServiceTaskDao;
 import com.dream11.odin.dao.ServiceValidateTaskDao;
 import com.dream11.odin.dto.ServiceComponentValidateTaskStatus;
@@ -27,6 +28,8 @@ public class DatabasePollerService {
   final ServiceTaskDao serviceTaskDao;
   final ServiceValidateTaskDao serviceValidateTaskDao;
 
+  final ServiceComponentDao serviceComponentDao;
+
   public Flowable<ServiceResponse> pollDatabase(Long taskId, Action action) {
     return pollDatabase(taskId, action, null);
   }
@@ -40,6 +43,50 @@ public class DatabasePollerService {
                     ? checkValidateStatusUpdate(taskId, components)
                     : checkStatusUpdate(taskId, components))
         .takeUntil(this::doTerminateDeploy);
+  }
+
+  public Flowable<ServiceResponse> pollDatabase(String serviceName, String envName, long orgId) {
+    return Flowable.interval(appConfig.getServiceDbStatusCheckIntervalSecs(), TimeUnit.SECONDS)
+        .flatMap(tick -> checkStatusUpdate(serviceName, envName, orgId))
+        .takeUntil(this::doTerminateDeploy);
+  }
+
+  private Flowable<ServiceResponse> checkStatusUpdate(
+      String serviceName, String envName, long orgId) {
+    return serviceComponentDao
+        .getServiceComponentStateInEnv(orgId, envName, serviceName)
+        .map(
+            environmentServiceComponentEntity ->
+                ServiceResponse.newBuilder()
+                    .setName(
+                        environmentServiceComponentEntity
+                            .getEnvironmentServiceEntity()
+                            .getServiceName())
+                    .setServiceStatus(
+                        ServiceStatus.newBuilder()
+                            .setServiceAction(
+                                environmentServiceComponentEntity
+                                    .getEnvironmentServiceEntity()
+                                    .getServiceAction()
+                                    .getName())
+                            .setServiceStatus(
+                                environmentServiceComponentEntity
+                                    .getEnvironmentServiceEntity()
+                                    .getServiceStatus()
+                                    .getValue())
+                            .build())
+                    .addAllComponentsStatus(
+                        environmentServiceComponentEntity.getComponents().stream()
+                            .map(
+                                componentEntity ->
+                                    ComponentStatus.newBuilder()
+                                        .setComponentName(componentEntity.getName())
+                                        .setComponentAction(componentEntity.getAction().getName())
+                                        .setComponentStatus(componentEntity.getStatus().getValue())
+                                        .build())
+                            .toList())
+                    .build())
+        .toFlowable();
   }
 
   private Flowable<ServiceResponse> checkStatusUpdate(Long serviceTaskId, Set<String> components) {
@@ -88,7 +135,6 @@ public class DatabasePollerService {
 
               return ServiceResponse.newBuilder()
                   .setName(serviceComponentTaskStatuses.get(0).serviceName())
-                  .setVersion(serviceComponentTaskStatuses.get(0).serviceVersion())
                   .setServiceStatus(serviceStatus)
                   .addAllComponentsStatus(componentStatuses)
                   .build();
@@ -141,7 +187,6 @@ public class DatabasePollerService {
 
               return ServiceResponse.newBuilder()
                   .setName(serviceComponentValidateTaskStatuses.get(0).serviceName())
-                  .setVersion(serviceComponentValidateTaskStatuses.get(0).serviceVersion())
                   .setServiceStatus(serviceStatus)
                   .addAllComponentsStatus(componentStatuses)
                   .build();

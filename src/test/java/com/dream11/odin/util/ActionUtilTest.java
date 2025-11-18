@@ -6,7 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.dream11.odin.constant.Action;
 import com.dream11.odin.dto.ComponentData;
-import com.dream11.odin.dto.ComponentId;
+import com.dream11.odin.dto.ComponentIdentifier;
 import com.dream11.odin.dto.requestqueue.ComponentAction;
 import com.dream11.odin.dto.v1.ComponentDefinition;
 import com.dream11.odin.dto.v1.ComponentProvisioningConfig;
@@ -26,7 +26,7 @@ class ActionUtilTest {
   @Test
   void testBuildComponentActionNoData() {
     // Arrange
-    Map<ComponentId, ComponentData> componentDataMap = new HashMap<>();
+    Map<ComponentIdentifier, ComponentData> componentDataMap = new HashMap<>();
     Action stageName = Action.DEPLOY;
     Map<String, Object> stageConfig = new HashMap<>();
 
@@ -44,12 +44,15 @@ class ActionUtilTest {
     vertx.runOnContext(
         __ -> {
           // Arrange
-          Map<ComponentId, ComponentData> componentDataMap = new HashMap<>();
+          Map<ComponentIdentifier, ComponentData> componentDataMap = new HashMap<>();
           Action stageName = Action.VALIDATE;
           Map<String, Object> stageConfig = new HashMap<>();
 
           componentDataMap.put(
-              ComponentId.builder().componentName("testComponent1").action(Action.VALIDATE).build(),
+              ComponentIdentifier.builder()
+                  .componentName("testComponent1")
+                  .action(Action.VALIDATE)
+                  .build(),
               ComponentData.builder()
                   .componentDefinition(
                       ComponentDefinition.newBuilder()

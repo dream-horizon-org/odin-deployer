@@ -10,7 +10,7 @@ public class MysqlQuery {
   public static final String BY_USER = " AND e.created_by = ?";
   public static final String BY_ACCOUNT = " AND et.provider_account_name = ?";
   public static final String REMOVE_DELETED_ENVIRONMENTS =
-      " AND NOT ( a.name = 'DELETE_ENVIRONMENT' AND et.status = " + "'SUCCESSFUL' ) ";
+      " AND NOT ( a.name = 'DELETE_ENVIRONMENT' AND ea.status = " + "'SUCCESSFUL' ) ";
   private static final String SELECT_SERVICE_TASK_FIELDS =
       "SELECT service_task.id AS id, env_id, service_task.name, service_version, "
           + "config, service_config_hash, action.name AS actions, status, service_task.version, "
@@ -23,21 +23,28 @@ public class MysqlQuery {
           + "updated_by) "
           + "VALUES (?,?,(SELECT action.id AS action_id FROM action WHERE action.name = ?),?,?,?,?,?,?,?);";
   public static final String CREATE_ENVIRONMENT =
-      "INSERT INTO environment(created_by, version, org_id, name, updated_by) VALUES (?,?,?,?,?);";
-  public static final String CREATE_ENVIRONMENT_TASK =
-      "INSERT INTO environment_task(env_id, action_id, status, version, trace_id, created_by, provider_account_name, "
-          + "service_accounts_snapshot, response, updated_by) VALUES (?,?,?,?,?,?,?,?,?,?);";
+      "INSERT INTO environment(created_by, org_id, name, updated_by) VALUES (?,?,?,?);";
+  public static final String CREATE_ENVIRONMENT_ACCOUNT =
+      "INSERT INTO environment_account(environment_id, action, status, created_by, account_name, "
+          + "account_data, updated_by) VALUES (?,?,?,?,?,?,?);";
+
+  public static final String UPDATE_ENVIRONMENT_ACCOUNT =
+      "UPDATE environment_account "
+          + "SET status = ?, "
+          + "action = ?, "
+          + "updated_by = ? "
+          + "WHERE environment_id = ? AND account_name = ?;";
+
   public static final String CREATE_SERVICE_TASK =
       "INSERT INTO service_task "
           + "(action_id, config, service_config_hash, env_id, name, service_version, status, version, trace_id, created_by, "
           + "updated_by) VALUES (( SELECT action.id AS action_id FROM action WHERE action.name = ?),?,?,?,?,?,?,?,?,?,?);";
   public static final String EOL = ";";
   public static final String ALL = EOL;
-  public static final String GET_ACTION_ID = "SELECT id FROM action WHERE name=?;";
 
-  public static final String GET_ENVIRONMENT_TASK =
-      "SELECT id, env_id, version, action_id, status, created_by, provider_account_name, service_accounts_snapshot, response "
-          + "FROM environment_task WHERE id = ?"
+  public static final String GET_ENVIRONMENT_ACCOUNT =
+      "SELECT id, environment_id, action, status, created_by, account_name, account_data "
+          + "FROM environment_account WHERE id = ?"
           + EOL;
 
   public static final String WITH_SERVICE_TASK_IDS = "WITH service_task_ids AS ";
@@ -88,16 +95,17 @@ ORDER BY ct.id;
   public static final UnaryOperator<String> GET_COMPONENT_TASKS_FOR_SERVICE_IN_ENV =
       inputQuery -> WITH_SERVICE_TASK_IDS + inputQuery;
 
-  public static final String GET_LATEST_SERVICE_TASKS_FOR_ENV =
-      "WITH ranked_service_task AS (SELECT st.id AS service_task_id, st.name, "
-          + "st.action_id, st.service_version, st.status, e.org_id, st.env_id, st.created_at,st.updated_at, ROW_NUMBER() OVER "
-          + "(PARTITION BY st.name ORDER BY st.id DESC) AS rn FROM service_task AS st join environment AS e ON st.env_id = e.id WHERE st.env_id = ?) "
-          + " SELECT ranked_service_task.service_task_id, ranked_service_task.name AS service_name, ranked_service_task.action_id, "
-          + " ranked_service_task.env_id, ranked_service_task.service_version AS service_version,ranked_service_task.created_at AS created_at,"
-          + "ranked_service_task.updated_at AS updated_at,ranked_service_task.status AS service_status, "
-          + " rn, action.name AS action_name "
-          + "FROM ranked_service_task JOIN action ON ranked_service_task.action_id = action.id WHERE rn = 1"
-          + " AND NOT (action.name ='UNDEPLOY' AND ranked_service_task.status = 'SUCCESSFUL');";
+  public static final String GET_ENVIRONMENT_SERVICES =
+      "SELECT es.id AS service_id, "
+          + "es.name AS service_name, "
+          + "es.action, "
+          + "es.environment_id AS env_id, "
+          + "es.status AS service_status, "
+          + "es.created_at, "
+          + "es.updated_at "
+          + "FROM environment_service AS es "
+          + "WHERE es.environment_id = ? "
+          + "AND NOT (es.action = 'UNDEPLOY' AND es.status = 'SUCCESSFUL');";
 
   public static final String GET_SERVICE_COMPONENT_TASK_STATUS =
       """
@@ -130,6 +138,59 @@ ORDER BY ct.id;
           + "FROM service_task  LEFT JOIN action ON action_id=action.id   JOIN environment ev ON service_task.env_id=ev.id "
           + "WHERE trace_id = ?  AND action.name in ('DEPLOY', 'OPERATE') AND service_task.name = ? AND ev.name = ?;";
 
+  public static final String GET_EXECUTION_BY_ID_AND_ACTION =
+      "SELECT execution_tasks.id, execution_tasks.action, "
+          + "execution_tasks.org_id, execution_tasks.status, execution_tasks.entity,"
+          + " execution_tasks.execution_id, execution_tasks.response, "
+          + "execution_tasks.payload from execution_tasks where execution_id=? and action.name=?;";
+
+  public static final String GET_ENV_SERVICE_COMPONENT =
+      "SELECT e.name AS environment_name, s.name AS service_name, "
+          + "s.action AS service_action, s.status AS service_status, s.created_by AS created_by,"
+          + " s.updated_by AS updated_by, c.name AS component_name,"
+          + " c.action AS component_action, c.status AS component_status "
+          + "FROM environment e JOIN environment_service s ON e.id = s.environment_id "
+          + "JOIN environment_service_component c ON s.id = c.environment_service_id "
+          + "WHERE e.org_id = ? AND e.name = ? AND s.name = ?; ";
+
+  public static final String UPSERT_ENVIRONMENT_SERVICE =
+      "INSERT INTO environment_service ( "
+          + "    environment_id, "
+          + "    name, "
+          + "    action, "
+          + "    config, "
+          + "    status, "
+          + "    created_by, "
+          + "    updated_by "
+          + ") VALUES ( "
+          + "    ?, ?, ?, ?, ?, ?, ? "
+          + ") ON DUPLICATE KEY UPDATE "
+          + "    action = ?, "
+          + "    config = VALUES(config), "
+          + "    status = ?, "
+          + "    updated_by = VALUES(updated_by) ";
+
+  public static final String UPSERT_ENVIRONMENT_SERVICE_COMPONENT =
+      """
+INSERT INTO environment_service_component
+            (environment_service_id, action, name, status, config, account_data, created_by, updated_by)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ON DUPLICATE KEY UPDATE
+            action = ?,
+            status = ?,
+            config = VALUES(config),
+            account_data = VALUES(account_data),
+            updated_by = VALUES(updated_by)
+""";
+
+  public static final String GET_ENVIRONMENT_SERVICE_ID =
+      "SELECT id FROM environment_service WHERE environment_id = ? AND name = ?";
+
+  public static final String UPDATE_ENVIRONMENT_SERVICE_STATUS =
+      "UPDATE environment_service SET status = ? WHERE id = ?;";
+  public static final String UPDATE_ENVIRONMENT_SERVICE_COMPONENT_STATUS =
+      "UPDATE environment_service_component SET status = ? WHERE name = ? AND environment_service_id = ?;";
+
   public static final String GET_LATEST_COMPLETED_SERVICE_TASK =
       SELECT_SERVICE_TASK_FIELDS
           + "FROM service_task LEFT JOIN action ON action_id=action.id  "
@@ -148,9 +209,14 @@ ORDER BY ct.id;
           + "= ? AND environment.org_id = ? AND service_task.name = ? ORDER BY service_task.id DESC LIMIT 1;";
 
   public static final String GET_ALL_RUNNING_SERVICE_NAMES_FROM_ENV =
-      "WITH RankedRows AS (SELECT s.name, a.name as an, s.status, ROW_NUMBER() OVER (PARTITION BY s.name ORDER BY s.id DESC) AS RowNum"
-          + " FROM service_task s JOIN action a ON s.action_id = a.id WHERE  NOT (a.name ='UNDEPLOY' AND s.status = 'SUCCESSFUL')"
-          + " AND a.name <> 'HEALTHCHECK' and s.env_id = ?) SELECT * FROM RankedRows rr WHERE RowNum = 1 order by rr.name;";
+      "SELECT es.name AS service_name, "
+          + "es.action AS action_name, "
+          + "es.status AS service_status "
+          + "FROM environment_service es "
+          + "WHERE es.environment_id = ? "
+          + "AND NOT (es.action = 'UNDEPLOY' AND es.status = 'SUCCESSFUL') "
+          + "AND es.action <> 'HEALTHCHECK' "
+          + "ORDER BY es.name;";
 
   public static final String GET_LATEST_COMPONENT_TASKS =
       "SELECT ct.id, ct.action_id, ct.component_name, ct.status, ct.response, ct.config, "
@@ -190,107 +256,81 @@ ORDER BY ct.id;
           + " name = ? WHERE org_id = ? AND id = ? AND version = ?;";
 
   public static final String UPDATE_ENVIRONMENT_ACTIVE_STATUS =
-      "UPDATE environment SET is_active = 0 WHERE id = (SELECT env_id FROM environment_task JOIN action ac ON environment_task.action_id "
-          + "= ac.id  WHERE environment_task.id = ?  AND  ac.name = ? AND environment_task.status = ?)"
+      "UPDATE environment SET is_active = 0 WHERE id = (SELECT environment_id FROM environment_account "
+          + "WHERE environment_account.id = ?  AND  action = ? AND environment_account.status = ?)"
           + EOL;
 
-  public static final String UPDATE_ENVIRONMENT_TASK_STATUS =
-      "UPDATE environment_task SET status = ?, response = ? WHERE id = ?" + EOL;
+  public static final String UPDATE_ENVIRONMENT_ACCOUNT_STATUS_WITH_RESPONSE =
+      "UPDATE environment_account SET status = ?, response = ? WHERE id = ?" + EOL;
 
   public static final String UPDATE_SERVICE_TASK_STATUS =
       "UPDATE service_task SET status = ? WHERE id = ?;";
-  public static final String WITH_RANKED_ENVIRONMENT_TASK = "WITH ranked_environment_task AS ";
   public static final String ENVIRONMENT_BY_ID =
-      WITH_RANKED_ENVIRONMENT_TASK
-          + "(SELECT environment.id as env_id, environment.created_at, environment.updated_at,environment.updated_by, "
-          + "environment"
-          + ".created_by, environment"
-          + ".version, "
-          + "environment.org_id, environment_task.provider_account_name, environment.name, "
-          + "environment_task.status, environment_task.action_id, environment_task.service_accounts_snapshot, "
-          + "ROW_NUMBER() OVER (PARTITION BY environment_task.provider_account_name ORDER BY environment_task.id DESC) AS rn "
-          + "FROM environment JOIN environment_task ON environment.id = environment_task.env_id WHERE environment.id = ? ) "
-          + "SELECT ranked_environment_task.env_id as id, ranked_environment_task.env_id as env_id, ranked_environment_task.created_at, "
-          + "ranked_environment_task.updated_at,ranked_environment_task.updated_by, "
-          + "ranked_environment_task.service_accounts_snapshot, "
-          + "ranked_environment_task.created_by, ranked_environment_task.version, ranked_environment_task.org_id, ranked_environment_task.provider_account_name, "
-          + "ranked_environment_task.name, ranked_environment_task.status, rn, action.name AS action_name "
-          + "FROM ranked_environment_task JOIN action ON ranked_environment_task.action_id = action.id WHERE rn = 1;";
+      "SELECT "
+          + "e.id AS environment_id, "
+          + "e.org_id, "
+          + "e.name, "
+          + "e.is_active,"
+          + "e.created_by, "
+          + "e.created_at, "
+          + "e.updated_by, "
+          + "e.updated_at, "
+          + "ea.id AS env_account_id, "
+          + "ea.account_name, "
+          + "ea.status AS status, "
+          + "ea.action AS action_name, "
+          + "ea.account_data, "
+          + "ea.created_by AS account_created_by, "
+          + "ea.created_at AS account_created_at, "
+          + "ea.updated_by AS account_updated_by, "
+          + "ea.updated_at AS account_updated_at "
+          + "FROM environment e "
+          + "JOIN environment_account ea ON e.id = ea.environment_id "
+          + "WHERE e.id = ?;";
 
   public static final String ENVIRONMENTS_BY_ORG_WITH_ALL_FIELDS =
       """
-SELECT
-    e.id AS id,
-    e.id AS env_id,
-    e.created_at,
-    e.updated_at,
-    e.created_by,
-    e.updated_by,
-    e.version,
-    e.is_active,
-    e.org_id,
-    et.provider_account_name,
-    et.service_accounts_snapshot,
-    e.name,
-    et.status,
-    a.name AS action_name
-FROM
-    environment AS e
-JOIN (
-    SELECT
-        et.env_id,
-        et.provider_account_name,
-        MAX(et.id) AS max_id
-    FROM
-        environment_task et
-    JOIN environment e ON et.env_id = e.id
-    WHERE e.org_id = ?
-    GROUP BY et.env_id, et.provider_account_name
-) AS latest_task ON e.id = latest_task.env_id
-JOIN environment_task AS et
-    ON et.id = latest_task.max_id
-    AND et.provider_account_name = latest_task.provider_account_name
-JOIN action AS a ON et.action_id = a.id
-WHERE
-    e.org_id = ?""";
+        SELECT
+            e.id AS environment_id,
+            e.org_id,
+            e.name,
+            e.is_active,
+            e.created_by,
+            e.created_at,
+            e.updated_by,
+            e.updated_at,
+            ea.id AS env_account_id,
+            ea.account_name,
+            ea.status AS status,
+            ea.account_data,
+            ea.created_by AS account_created_by,
+            ea.created_at AS account_created_at,
+            ea.updated_by AS account_updated_by,
+            ea.updated_at AS account_updated_at,
+            ea.action AS action_name
+        FROM environment e
+        LEFT JOIN environment_account ea
+            ON e.id = ea.environment_id
+        WHERE e.org_id = ?
+        """;
 
   public static final UnaryOperator<String> GET_ENVIRONMENTS_WITH_ALL_FIELDS =
       inputQuery -> ENVIRONMENTS_BY_ORG_WITH_ALL_FIELDS + inputQuery;
-  public static final String GET_LAST_ENVIRONMENT_TASK =
-      WITH_RANKED_ENVIRONMENT_TASK
-          + "(SELECT environment_task.id, environment_task.action_id, environment_task.env_id, environment_task.status, "
-          + "environment.org_id, environment.name, environment.created_by, environment.created_at,"
-          + " environment.updated_at,environment.updated_by, "
-          + "environment.version, environment_task.provider_account_name, environment_task.service_accounts_snapshot, "
-          + "ROW_NUMBER() OVER (PARTITION BY environment_task.env_id, environment_task.provider_account_name ORDER BY environment_task.id DESC) AS rn "
-          + "FROM environment JOIN environment_task ON environment.id = environment_task.env_id WHERE environment.name = ? AND "
-          + "environment.org_id = ? and environment.is_active =1 ) "
-          + "SELECT ranked_environment_task.id, ranked_environment_task.action_id, ranked_environment_task.env_id, ranked_environment_task.status, "
-          + "ranked_environment_task.org_id, ranked_environment_task.name, ranked_environment_task.created_by, "
-          + "ranked_environment_task.provider_account_name, ranked_environment_task.service_accounts_snapshot, "
-          + "ranked_environment_task.created_at, ranked_environment_task.updated_at,ranked_environment_task.updated_by, "
-          + "ranked_environment_task.version, rn, action.name AS action_name "
-          + "FROM ranked_environment_task JOIN action ON ranked_environment_task.action_id = action.id WHERE rn = 1";
 
-  public static final String GET_LAST_ENVIRONMENT_TASK_EXCLUDING_DELETED =
-      WITH_RANKED_ENVIRONMENT_TASK
-          + "(SELECT environment_task.id, environment_task.action_id, environment_task.env_id, environment_task.status, "
-          + "environment.org_id, environment.name, environment.created_by, environment.created_at, environment.updated_at,environment"
-          + ".updated_by, "
-          + "environment.version, environment_task.provider_account_name, environment_task.service_accounts_snapshot, "
-          + "ROW_NUMBER() OVER (PARTITION BY environment_task.env_id, environment_task.provider_account_name ORDER BY environment_task.id DESC) AS rn "
-          + "FROM environment JOIN environment_task ON environment.id = environment_task.env_id WHERE environment.name = ? AND environment.org_id = ? ) "
-          + "SELECT ranked_environment_task.id, ranked_environment_task.action_id, ranked_environment_task.env_id, ranked_environment_task.status, "
-          + "ranked_environment_task.org_id, ranked_environment_task.name, ranked_environment_task.created_by, "
-          + "ranked_environment_task.provider_account_name, ranked_environment_task.service_accounts_snapshot, "
-          + "ranked_environment_task.created_at, ranked_environment_task.updated_at,ranked_environment_task.updated_by, "
-          + "ranked_environment_task.version, rn, action.name AS action_name "
-          + "FROM ranked_environment_task JOIN action ON ranked_environment_task.action_id = action.id WHERE rn = 1 AND NOT (action.name "
-          + "= 'DELETE_ENVIRONMENT' AND ranked_environment_task.status = 'SUCCESSFUL')";
+  public static final String GET_ENVIRONMENT_ACCOUNTS =
+      "SELECT "
+          + "ea.id, ea.action, ea.environment_id, ea.status, "
+          + "env.org_id, env.name, env.created_by, env.created_at, env.updated_at, env.updated_by, "
+          + "ea.account_name AS account_name, "
+          + "ea.account_data, "
+          + "ea.action AS action_name "
+          + "FROM environment AS env "
+          + "JOIN environment_account AS ea ON env.id = ea.environment_id "
+          + "WHERE env.name = ? "
+          + "AND env.org_id = ? "
+          + "AND env.is_active = 1";
 
-  public static final String GET_LATEST_ENVIRONMENT_TASK = GET_LAST_ENVIRONMENT_TASK + EOL;
-  public static final String GET_LATEST_ENVIRONMENT_TASK_EXCLUDING_DELETED =
-      GET_LAST_ENVIRONMENT_TASK_EXCLUDING_DELETED + EOL;
+  public static final String GET_ALL_ENVIRONMENT_ACCOUNTS = GET_ENVIRONMENT_ACCOUNTS + EOL;
 
   public static final String CREATE_SERVICE_VALIDATE_TASK =
       "INSERT INTO service_validate_task "
@@ -431,6 +471,73 @@ WHERE
                     LIMIT 1;
                     """;
 
+  public static final String CREATE_ENVIRONMENT_LOCK_IF_ABSENT =
+      "INSERT IGNORE INTO environment_lock (environment_id, created_by, updated_by) VALUES (?, ?, ?);";
+
+  public static final String ACQUIRE_ENVIRONMENT_SHARED =
+      "UPDATE environment_lock SET shared_count = shared_count + 1, updated_at = NOW() "
+          + "WHERE environment_id = ? AND exclusive = 0;";
+
+  public static final String RELEASE_ENVIRONMENT_SHARED =
+      "UPDATE environment_lock SET shared_count = GREATEST(shared_count - 1, 0), updated_at = NOW() "
+          + "WHERE environment_id = ?;";
+
+  public static final String ACQUIRE_ENVIRONMENT_EXCLUSIVE =
+      "UPDATE environment_lock SET exclusive = 1, updated_at = NOW() "
+          + "WHERE environment_id = ? AND exclusive = 0 AND shared_count = 0;";
+
+  public static final String RELEASE_ENVIRONMENT_EXCLUSIVE =
+      "UPDATE environment_lock SET exclusive = 0, updated_at = NOW() "
+          + "WHERE environment_id = (SELECT environment_id FROM environment_account where id=?) AND exclusive = 1;";
+
+  public static final String CREATE_ENVIRONMENT_SERVICE_LOCK_IF_ABSENT =
+      "INSERT IGNORE INTO environment_service_lock (environment_id, environment_service_id, created_by, updated_by) VALUES (?, ?, ?, ?);";
+
+  public static final String ACQUIRE_ENVIRONMENT_SERVICE_SHARED_LOCK =
+      "UPDATE environment_service_lock SET shared_count = shared_count + 1, updated_at = NOW() "
+          + "WHERE environment_id = ? AND environment_service_id = ? AND exclusive = 0;";
+
+  public static final String RELEASE_ENVIRONMENT_SERVICE_SHARED_LOCK =
+      "UPDATE environment_service_lock SET shared_count = GREATEST(shared_count - 1, 0), updated_at = NOW() "
+          + "WHERE environment_id = ? AND environment_service_id = ?;";
+
+  public static final String ACQUIRE_ENVIRONMENT_SERVICE_EXCLUSIVE_LOCK =
+      "UPDATE environment_service_lock SET exclusive = 1 "
+          + "WHERE environment_id = ? AND environment_service_id = ? AND exclusive = 0 AND shared_count = 0;";
+
+  public static final String RELEASE_ENVIRONMENT_SERVICE_EXCLUSIVE_LOCK =
+      "UPDATE environment_service_lock SET exclusive = 0, updated_at = NOW() "
+          + "WHERE environment_id = ? AND environment_service_id = ? AND exclusive = 1;";
+
+  public static final String CREATE_ENVIRONMENT_SERVICE_COMPONENT_LOCK_IF_ABSENT =
+      "INSERT IGNORE INTO environment_service_component_lock (env_id, environment_service_id, environment_service_component_id, created_by, updated_by) VALUES (?, ?, ?, ?, ?);";
+
+  public static final String ACQUIRE_ENVIRONMENT_SERVICE_COMPONENT_SHARED_LOCK =
+      "UPDATE environment_service_component_lock SET shared_count = shared_count + 1, updated_at = NOW() "
+          + "WHERE env_id = ? AND environment_service_id = ? AND environment_service_component_id = ? AND exclusive = 0;";
+
+  public static final String RELEASE_ENVIRONMENT_SERVICE_COMPONENT_SHARED_LOCK =
+      "UPDATE environment_service_component_lock SET shared_count = GREATEST(shared_count - 1, 0), updated_at = NOW() "
+          + "WHERE env_id = ? AND environment_service_id = ? AND environment_service_component_id = ?;";
+
+  public static final String ACQUIRE_ENVIRONMENT_SERVICE_COMPONENT_EXCLUSIVE_LOCK =
+      "UPDATE environment_service_component_lock SET exclusive = 1, updated_at = NOW() "
+          + "WHERE env_id = ? AND environment_service_id = ? AND environment_service_component_id = ? AND exclusive = 0 AND shared_count = 0;";
+
+  public static final String RELEASE_ENVIRONMENT_SERVICE_COMPONENT_EXCLUSIVE_LOCK =
+      "UPDATE environment_service_component_lock SET exclusive = 0, updated_at = NOW() "
+          + "WHERE env_id = ? AND environment_service_id = ? AND environment_service_component_id = ? AND exclusive = 1;";
+
+  public static final String INSERT_EXECUTION_TASK =
+      "INSERT INTO execution_tasks (action, org_id, response, status, entity, execution_id, payload, created_by, updated_by) "
+          + "VALUES (?, ?, JSON_OBJECT(), ?, ?, ?, CAST(? AS JSON), ?, ?)";
+
+  public static final String UPDATE_EXECUTION_TASK =
+      "UPDATE execution_tasks "
+          + "SET status = ?, "
+          + "response = CAST(? AS JSON) "
+          + "WHERE execution_id = ?;";
+
   public static final String GET_AUTH_PROVIDER_FOR_ORG =
       "SELECT type, provider_details from auth_provider where org_id=?;";
   // Todo - remove oidc specific fields
@@ -442,4 +549,10 @@ WHERE
           + "'token_url', provider_details->>'$.token_url', "
           + "'scope', provider_details->>'$.scope'"
           + ") as provider_details from auth_provider where org_id=?;";
+
+  public static final String GET_ENV_ACCOUNT_ID_FROM_ENV_ID_AND_NAME =
+      "SELECT id FROM environment_account WHERE environment_id = ? AND account_name = ?;";
+
+  public static final String UPDATE_ENVIRONMENT_ACCOUNT_STATUS =
+      "UPDATE environment_account " + "SET status = ? " + "WHERE id = ?";
 }
