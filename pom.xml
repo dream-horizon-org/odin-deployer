@@ -16,7 +16,8 @@
     <resource.directory>src/main/resources</resource.directory>
     <vertx.version>4.4.4</vertx.version>
     <reactive.grpc.version>1.2.4</reactive.grpc.version>
-    <vertx-grpc-extension.version>0.0.1</vertx-grpc-extension.version>
+    <vertx-grpc-extension.version>0.0.2</vertx-grpc-extension.version>
+    <protobuf-java.version>3.25.1</protobuf-java.version>
     <lombok.version>1.18.34</lombok.version>
     <netty.version>4.1.91.Final</netty.version>
     <slf4j.version>2.0.17</slf4j.version>
@@ -225,6 +226,12 @@
     </dependency>
 
     <dependency>
+      <groupId>com.google.protobuf</groupId>
+      <artifactId>protobuf-java</artifactId>
+      <version>${protobuf-java.version}</version>
+    </dependency>
+
+    <dependency>
       <groupId>build.buf.protoc-gen-validate</groupId>
       <artifactId>pgv-java-grpc</artifactId>
       <version>${protoc-gen-validate.version}</version>
@@ -283,6 +290,52 @@
       <artifactId>vertx-completable-future</artifactId>
       <version>${vertx-completable-future.version}</version>
     </dependency>
+
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-lang3</artifactId>
+      <version>${apache.commons.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>com.dream11</groupId>
+      <artifactId>vertx-rest</artifactId>
+      <version>${vertx-rest.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>jakarta.xml.bind</groupId>
+      <artifactId>jakarta.xml.bind-api</artifactId>
+      <version>${jakarta.xml.bind.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>com.github.akarnokd</groupId>
+      <artifactId>rxjava3-bridge</artifactId>
+      <version>${rxjava3-bridge.version}</version>
+    </dependency>
+
+    <!-- JWT -->
+    <dependency>
+      <groupId>io.jsonwebtoken</groupId>
+      <artifactId>jjwt-api</artifactId>
+      <version>${jjwt.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>io.jsonwebtoken</groupId>
+      <artifactId>jjwt-impl</artifactId>
+      <version>${jjwt.version}</version>
+      <scope>runtime</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>io.jsonwebtoken</groupId>
+      <artifactId>jjwt-jackson</artifactId>
+      <version>${jjwt.version}</version>
+      <scope>runtime</scope>
+    </dependency>
+
 
 
     <!--   Tests   -->
@@ -398,55 +451,6 @@
       <version>${liquibase.version}</version>
       <scope>test</scope>
     </dependency>
-
-    <dependency>
-      <groupId>org.apache.commons</groupId>
-      <artifactId>commons-lang3</artifactId>
-      <version>${apache.commons.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>com.dream11</groupId>
-      <artifactId>vertx-rest</artifactId>
-      <version>${vertx-rest.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>jakarta.xml.bind</groupId>
-      <artifactId>jakarta.xml.bind-api</artifactId>
-      <version>${jakarta.xml.bind.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>com.github.akarnokd</groupId>
-      <artifactId>rxjava3-bridge</artifactId>
-      <version>${rxjava3-bridge.version}</version>
-    </dependency>
-
-    <!-- JWT -->
-    <dependency>
-      <groupId>io.jsonwebtoken</groupId>
-      <artifactId>jjwt-api</artifactId>
-      <version>${jjwt.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>io.jsonwebtoken</groupId>
-      <artifactId>jjwt-impl</artifactId>
-      <version>${jjwt.version}</version>
-      <scope>runtime</scope>
-    </dependency>
-    <dependency>
-      <groupId>io.jsonwebtoken</groupId>
-      <artifactId>jjwt-jackson</artifactId>
-      <version>${jjwt.version}</version>
-      <scope>runtime</scope>
-    </dependency>
-    <dependency>
-      <groupId>io.rest-assured</groupId>
-      <artifactId>rest-assured</artifactId>
-      <version>${rest-assured.version}</version>
-      <scope>test</scope>
-    </dependency>
-
   </dependencies>
 
   <dependencyManagement>
