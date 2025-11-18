@@ -234,7 +234,6 @@ class ValidationUtilTest {
           ServiceDefinition serviceDefinition =
               ServiceDefinition.newBuilder()
                   .setName("testService")
-                  .setVersion("testVersion")
                   .build();
           ServiceData serviceData =
               ServiceData.builder()
