@@ -6,7 +6,9 @@ import com.dream11.grpc.util.ExceptionUtil;
 import com.dream11.odin.client.WebClient;
 import com.dream11.odin.dto.AuthProviderData;
 import com.dream11.odin.dto.TokenResponse;
-import com.dream11.odin.dto.auth.OIDCProviderConfig;
+import com.dream11.odin.dto.auth.AuthRequestData;
+import com.dream11.odin.dto.auth.OIDCProviderDetails;
+import com.dream11.odin.dto.auth.OIDCRequestData;
 import com.dream11.odin.error.OdinError;
 import com.google.inject.Inject;
 import io.reactivex.Single;
@@ -28,58 +30,43 @@ public class OIDCAuthExecutor implements AuthExecutor {
   private final WebClient webClient;
 
   @Override
-  public Single<String> authorise(AuthProviderData authProviderData, JsonObject requestData) {
+  public Single<String> authorise(AuthProviderData authProviderData, AuthRequestData requestData) {
     log.info("Starting OIDC authorization for orgId: {}", authProviderData.getOrgId());
 
-    return this.exchangeCodeForToken(buildOIDCConfig(authProviderData, requestData))
+    Long orgId = authProviderData.getOrgId();
+
+    if (!(requestData instanceof OIDCRequestData)) {
+      throw ExceptionUtil.getException(OdinError.AUTH_CODE_NOT_FOUND, orgId);
+    }
+
+    if (!(authProviderData.getProviderDetails() instanceof OIDCProviderDetails)) {
+      throw ExceptionUtil.getException(OdinError.AUTH_CLIENT_CREDENTIALS_NOT_FOUND, orgId);
+    }
+
+    OIDCProviderDetails oidcDetails = (OIDCProviderDetails) authProviderData.getProviderDetails();
+    oidcDetails.validateRequiredFieldsForAuth(orgId);
+    OIDCRequestData oidcRequest = (OIDCRequestData) requestData;
+
+    return this.exchangeCodeForToken(oidcDetails, oidcRequest)
         .map(this::extractUserEmail)
         .flatMap(userEmail -> generateJwtToken(userEmail, authProviderData));
   }
 
-  private OIDCProviderConfig buildOIDCConfig(AuthProviderData provider, JsonObject request) {
-    Long orgId = provider.getOrgId();
-
-    String code =
-        requireNonEmpty(
-            request.getString(AUTHORIZATION_CODE), OdinError.AUTH_CODE_NOT_FOUND, orgId);
-    String redirectUri =
-        requireNonEmpty(
-            request.getString(REDIRECT_URI), OdinError.AUTH_REDIRECT_URL_NOT_FOUND, orgId);
-
-    JsonObject details = provider.getProviderDetails();
-    String tokenUrl =
-        requireNonEmpty(
-            details.getString(TOKEN_URL), OdinError.AUTH_CLIENT_CREDENTIALS_NOT_FOUND, orgId);
-    String clientId =
-        requireNonEmpty(
-            details.getString(CLIENT_ID), OdinError.AUTH_CLIENT_CREDENTIALS_NOT_FOUND, orgId);
-    String clientSecret =
-        requireNonEmpty(
-            details.getString(CLIENT_SECRET), OdinError.AUTH_CLIENT_CREDENTIALS_NOT_FOUND, orgId);
-
-    return OIDCProviderConfig.builder()
-        .tokenUrl(tokenUrl)
-        .clientId(clientId)
-        .clientSecret(clientSecret)
-        .redirectUri(redirectUri)
-        .authorizationCode(code)
-        .build();
-  }
-
-  private Single<TokenResponse> exchangeCodeForToken(OIDCProviderConfig config) {
-    log.info("Exchanging authorization code for token at: {}", config.getTokenUrl());
+  private Single<TokenResponse> exchangeCodeForToken(
+      OIDCProviderDetails providerDetails, OIDCRequestData requestData) {
+    log.info("Exchanging authorization code for token at: {}", providerDetails.getTokenUrl());
 
     MultiMap form =
         MultiMap.caseInsensitiveMultiMap()
             .add(GRANT_TYPE, AUTHORIZATION_CODE)
-            .add(CODE, config.getAuthorizationCode())
-            .add(REDIRECT_URI, config.getRedirectUri())
-            .add(CLIENT_ID, config.getClientId())
-            .add(CLIENT_SECRET, config.getClientSecret());
+            .add(CODE, requestData.getAuthorizationCode())
+            .add(REDIRECT_URI, requestData.getRedirectUri())
+            .add(CLIENT_ID, providerDetails.getClientId())
+            .add(CLIENT_SECRET, providerDetails.getClientSecret());
 
     return webClient
         .getWebClient()
-        .postAbs(config.getTokenUrl())
+        .postAbs(providerDetails.getTokenUrl())
         .as(BodyCodec.json(TokenResponse.class))
         .putHeader(CONTENT_TYPE, APPLICATION_FORM_TYPE)
         .expect(ResponsePredicate.SC_SUCCESS)
@@ -109,12 +96,5 @@ public class OIDCAuthExecutor implements AuthExecutor {
 
   private Single<String> generateJwtToken(String userEmail, AuthProviderData authProviderData) {
     return jwtService.generateToken(userEmail, Map.of(ORGID, authProviderData.getOrgId()));
-  }
-
-  private String requireNonEmpty(String value, OdinError error, Long orgId) {
-    if (value == null || value.isBlank()) {
-      throw ExceptionUtil.getException(error, orgId);
-    }
-    return value;
   }
 }

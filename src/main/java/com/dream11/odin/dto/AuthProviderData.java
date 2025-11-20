@@ -1,6 +1,6 @@
 package com.dream11.odin.dto;
 
-import io.vertx.core.json.JsonObject;
+import com.dream11.odin.dto.auth.ProviderDetails;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -11,5 +11,5 @@ import lombok.NoArgsConstructor;
 public class AuthProviderData {
   private Long orgId;
   private String type;
-  private JsonObject providerDetails;
+  private ProviderDetails providerDetails;
 }
