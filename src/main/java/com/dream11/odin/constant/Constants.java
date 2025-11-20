@@ -92,6 +92,7 @@ public class Constants {
   public static final String ODIN_COMPONENT_VERSION = "ODIN_COMPONENT_VERSION";
 
   public static final String OIDC = "oidc";
+  public static final String ANONYMOUS = "anonymous";
   public static final String ID_TOKEN = "id_token";
   public static final String EMAIL = "email";
   public static final String GRANT_TYPE = "grant_type";

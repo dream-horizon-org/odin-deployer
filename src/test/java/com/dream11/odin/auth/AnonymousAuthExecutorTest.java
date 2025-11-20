@@ -5,13 +5,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.dream11.odin.MainModule;
 import com.dream11.odin.config.AppConfig;
 import com.dream11.odin.dto.AuthProviderData;
+import com.dream11.odin.dto.auth.AnonymousProviderDetails;
+import com.dream11.odin.dto.auth.AnonymousRequestData;
 import com.dream11.odin.injector.GuiceInjector;
 import com.dream11.odin.util.SharedDataUtil;
 import com.google.inject.Guice;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.vertx.core.Vertx;
-import io.vertx.core.json.JsonObject;
 import io.vertx.junit5.VertxExtension;
 import io.vertx.junit5.VertxTestContext;
 import java.security.KeyPair;
@@ -80,7 +81,9 @@ class AnonymousAuthExecutorTest {
         __ -> {
           // Act
           anonymousAuthExecutor
-              .authorise(new AuthProviderData(0L, "anonymous", new JsonObject()), new JsonObject())
+              .authorise(
+                  new AuthProviderData(0L, "anonymous", new AnonymousProviderDetails()),
+                  new AnonymousRequestData())
               .map(
                   token -> {
                     // Assert

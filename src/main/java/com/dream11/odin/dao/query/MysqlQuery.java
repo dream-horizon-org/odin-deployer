@@ -433,13 +433,4 @@ WHERE
 
   public static final String GET_AUTH_PROVIDER_FOR_ORG =
       "SELECT type, provider_details from auth_provider where org_id=?;";
-  // Todo - remove oidc specific fields
-  public static final String GET_AUTH_PROVIDER_FOR_ORG_WITHOUT_SECRET =
-      "SELECT type, JSON_OBJECT("
-          + "'name', provider_details->>'$.name', "
-          + "'client_id', provider_details->>'$.client_id', "
-          + "'authorization_url', provider_details->>'$.authorization_url', "
-          + "'token_url', provider_details->>'$.token_url', "
-          + "'scope', provider_details->>'$.scope'"
-          + ") as provider_details from auth_provider where org_id=?;";
 }

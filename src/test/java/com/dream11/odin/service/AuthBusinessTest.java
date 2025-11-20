@@ -3,6 +3,8 @@ package com.dream11.odin.service;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.when;
 
 import com.dream11.odin.MainModule;
@@ -10,16 +12,19 @@ import com.dream11.odin.auth.AuthExecutor;
 import com.dream11.odin.auth.AuthExecutorFactory;
 import com.dream11.odin.dao.AuthProviderDao;
 import com.dream11.odin.dto.AuthProviderData;
+import com.dream11.odin.dto.auth.AnonymousProviderDetails;
+import com.dream11.odin.dto.auth.AnonymousRequestData;
 import com.dream11.odin.injector.GuiceInjector;
 import com.dream11.odin.util.SharedDataUtil;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Guice;
 import com.google.protobuf.Struct;
 import io.reactivex.Single;
 import io.vertx.core.Vertx;
-import io.vertx.core.json.JsonObject;
 import io.vertx.junit5.VertxExtension;
 import io.vertx.junit5.VertxTestContext;
 import java.util.List;
+import lombok.SneakyThrows;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -30,6 +35,8 @@ import org.mockito.MockitoAnnotations;
 class AuthBusinessTest {
 
   @Mock private AuthProviderDao authProviderDao;
+
+  @Mock private ObjectMapper objectMapper;
 
   @Mock private AuthExecutorFactory authExecutorFactory;
 
@@ -45,16 +52,22 @@ class AuthBusinessTest {
 
     MockitoAnnotations.openMocks(this);
 
-    authBusiness = new AuthBusiness(authProviderDao, authExecutorFactory);
+    authBusiness = new AuthBusiness(authProviderDao, authExecutorFactory, objectMapper);
+  }
+
+  @SneakyThrows
+  private void setupObjectMapperMock(AnonymousRequestData anonymousRequestData) {
+    doReturn(anonymousRequestData)
+        .when(objectMapper)
+        .readValue(anyString(), eq(com.dream11.odin.dto.auth.AuthRequestData.class));
   }
 
   @Test
   void testGetAuthProvider() {
     AuthProviderData authProviderData = new AuthProviderData();
     authProviderData.setType("anonymous");
-    authProviderData.setProviderDetails(new JsonObject());
-    when(authProviderDao.getAuthProviderDataForClient(anyLong()))
-        .thenReturn(Single.just(authProviderData));
+    authProviderData.setProviderDetails(new AnonymousProviderDetails());
+    when(authProviderDao.getAuthProviderData(anyLong())).thenReturn(Single.just(authProviderData));
     authBusiness
         .getAuthProvider(0L)
         .test()
@@ -67,11 +80,18 @@ class AuthBusinessTest {
     vertx.runOnContext(
         __ -> {
           AuthProviderData authProviderData = new AuthProviderData();
+          authProviderData.setOrgId(1L);
           authProviderData.setType("anonymous");
+          authProviderData.setProviderDetails(new AnonymousProviderDetails());
+
+          AnonymousRequestData anonymousRequestData = new AnonymousRequestData();
+          anonymousRequestData.setProviderType("anonymous");
+
           when(authProviderDao.getAuthProviderData(anyLong()))
               .thenReturn(Single.just(authProviderData));
           when(authExecutorFactory.getAuthExecutor(anyString())).thenReturn(authExecutor);
           when(authExecutor.authorise(any(), any())).thenReturn(Single.just("test-token"));
+          setupObjectMapperMock(anonymousRequestData);
 
           authBusiness
               .getUserToken(1L, Struct.newBuilder().build())
