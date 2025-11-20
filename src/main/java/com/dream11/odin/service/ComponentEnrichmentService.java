@@ -61,9 +61,19 @@ public class ComponentEnrichmentService {
             componentData.getComponentDefinition().getName())
         .map(
             componentTaskEntity -> {
-              ComponentData componentData1 = ComponentUtil.getComponentData(componentTaskEntity);
+              ComponentData oldComponentData =
+                  ComponentUtil.getComponentData(
+                      componentTaskEntity); // Construct older component data from task
               return ComponentDataStatus.builder()
-                  .componentData(componentData1)
+                  .componentData(
+                      ComponentData.builder()
+                          .componentDefinition(oldComponentData.getComponentDefinition())
+                          .componentProvisioningConfig(
+                              oldComponentData.getComponentProvisioningConfig())
+                          .operationConfig(componentData.getOperationConfig())
+                          .environmentProviderAccounts(
+                              oldComponentData.getEnvironmentProviderAccounts())
+                          .build())
                   .action(componentTaskEntity.getAction())
                   .status(componentTaskEntity.getStatus())
                   .build();
