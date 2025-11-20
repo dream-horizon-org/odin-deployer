@@ -197,30 +197,27 @@ public abstract class Operation {
 
     Map<ComponentId, ComponentData> componentDataMap =
         Map.of(componentId, componentDataBuilder.operationConfig(request.getConfig()).build());
-
     return validator
         .validateAll()
         .andThen(
             // First enrich component data from database if needed
-            componentEnrichmentService
-                .enrichComponentsFromDatabase(componentDataMap, requestMetaContext)
-                .flatMap(
-                    enrichedComponentDataMap ->
-                        // Then apply interceptors
-                        interceptorService
-                            .invokeInterceptors(enrichedComponentDataMap, requestMetaContext)
-                            .flatMap(
-                                interceptedComponentDataMap ->
-                                    // Finally apply placeholders
-                                    placeholderService.replacePlaceholdersInComponents(
-                                        interceptedComponentDataMap, requestMetaContext)))
-                .map(
-                    updatedComponentDataMap -> {
-                      log.info(
-                          "Updated the componentMap using interceptors and placeholders for env {}, proceeding",
-                          environment.getName());
-                      return updatedComponentDataMap.get(componentId);
-                    }));
+            componentEnrichmentService.enrichComponentsFromDatabase(
+                componentDataMap, requestMetaContext))
+        .flatMap(
+            enrichedComponentDataMap ->
+                // Then apply interceptors
+                interceptorService.invokeInterceptors(enrichedComponentDataMap, requestMetaContext))
+        .flatMap(
+            interceptedComponentDataMap ->
+                // Finally apply placeholders
+                placeholderService.replacePlaceholdersInComponents(
+                    interceptedComponentDataMap, requestMetaContext))
+        .doOnSuccess(
+            __ ->
+                log.info(
+                    "Updated the componentMap using interceptors and placeholders for env {}, proceeding",
+                    environment.getName()))
+        .map(updatedComponentDataMap -> updatedComponentDataMap.get(componentId));
   }
 
   private Flowable<OperateServiceResponse> getResponseFromDBPoller(Long id, String component) {
