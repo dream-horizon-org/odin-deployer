@@ -58,7 +58,7 @@ message OperateServiceRequest {
   string component_name = 3;
   bool is_component_operation = 4;
   string operation = 5;
-  optional google.protobuf.Struct config = 6;
+  optional string config_json = 6;
 }
 
 message OperateServiceResponse {
@@ -79,10 +79,10 @@ message OperateComponentDiffRequest {
   string service_name = 2;
   string component_name = 3;
   string operation_name = 4;
-  optional google.protobuf.Struct config = 5;
+  optional string config_json = 5;
 }
 
 message OperateComponentDiffResponse {
-  google.protobuf.Struct old_values = 1;
-  google.protobuf.Struct new_values = 2;
+  string old_values_json = 1;
+  string new_values_json = 2;
 }

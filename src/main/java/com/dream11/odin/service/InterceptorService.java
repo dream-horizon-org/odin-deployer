@@ -18,7 +18,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.inject.Inject;
-import com.google.protobuf.Struct;
 import io.reactivex.Single;
 import io.vertx.core.json.JsonObject;
 import io.vertx.reactivex.core.buffer.Buffer;
@@ -97,8 +96,8 @@ public class InterceptorService {
     }
     String stageName = additionalContext.get(Constants.ACTION).toString();
     JsonNode operationJson =
-        componentData.getOperationConfig() != null
-            ? JsonUtil.convertProtoToJsonNode(componentData.getOperationConfig())
+        componentData.getOperationConfigJson() != null
+            ? JsonUtil.convertToJsonNode(componentData.getOperationConfigJson())
             : null;
 
     ObjectNode baseNode = objectMapper.valueToTree(componentData);
@@ -157,17 +156,14 @@ public class InterceptorService {
 
   private ComponentData convertPayloadToComponentData(String interceptorPayloadJson) {
     JsonObject interceptorPayload = new JsonObject(interceptorPayloadJson);
-    Struct operationStruct;
+    String operationConfigJson;
     if (!interceptorPayload.containsKey(OPERATION)) {
       log.warn(
           "Operation config is null or missing for component: {}, using empty Struct",
           interceptorPayload.getJsonObject("definition").getString("name"));
-      operationStruct = Struct.newBuilder().build();
+      operationConfigJson = "{}";
     } else {
-      operationStruct =
-          JsonUtil.jsonStringToProtoBuilder(
-                  interceptorPayload.getString(OPERATION), Struct.newBuilder())
-              .build();
+      operationConfigJson = interceptorPayload.getString(OPERATION);
     }
 
     ComponentDefinition componentDefinition =
@@ -188,7 +184,7 @@ public class InterceptorService {
     return ComponentData.builder()
         .componentDefinition(componentDefinition)
         .componentProvisioningConfig(provisioning)
-        .operationConfig(operationStruct)
+        .operationConfigJson(operationConfigJson)
         .environmentProviderAccounts(accountInformation)
         .build();
   }

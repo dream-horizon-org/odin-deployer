@@ -58,7 +58,6 @@ import com.dream11.odin.util.EnvironmentUtil;
 import com.dream11.odin.util.JsonUtil;
 import com.dream11.odin.util.SingleUtil;
 import com.google.inject.Inject;
-import com.google.protobuf.Struct;
 import com.google.protobuf.Value;
 import com.google.protobuf.util.JsonFormat;
 import io.reactivex.Completable;
@@ -678,16 +677,13 @@ public class EnvironmentDao {
   private ComponentTask.Builder mergeComponentTask(
       ComponentTask.Builder prevBuilder, ComponentTask.Builder latestBuilder) {
 
-    Struct prevConfig = prevBuilder.getConfig();
-    JsonObject prevConfigJson = JsonUtil.getJsonFromProto(prevConfig);
-
-    Struct latestConfig = latestBuilder.getConfig();
-    JsonObject latestConfigJson = JsonUtil.getJsonFromProto(latestConfig);
+    JsonObject prevConfigJson = new JsonObject(prevBuilder.getConfigJson());
+    JsonObject latestConfigJson = new JsonObject(latestBuilder.getConfigJson());
 
     latestConfigJson = JsonUtil.mergeJsonObjects(prevConfigJson, latestConfigJson);
 
     ComponentTask.Builder builderCopy = latestBuilder.clone();
-    builderCopy.setConfig(JsonUtil.jsonToProtoBuilder(latestConfigJson, Struct.newBuilder()));
+    builderCopy.setConfigJson(latestConfigJson.encode());
 
     return builderCopy;
   }
@@ -695,12 +691,10 @@ public class EnvironmentDao {
   private ComponentTask.Builder mergeComponentConfigs(ComponentTask.Builder componentTaskBuilder) {
 
     ComponentTask.Builder componentTaskBuilderCopy = componentTaskBuilder.clone();
-    Struct config = componentTaskBuilderCopy.getConfig();
-    JsonObject configJson = JsonUtil.getJsonFromProto(config);
+    JsonObject configJson = new JsonObject(componentTaskBuilderCopy.getConfigJson());
     configJson = mergeConfigs(configJson);
 
-    componentTaskBuilderCopy.setConfig(
-        JsonUtil.jsonToProtoBuilder(configJson, Struct.newBuilder()));
+    componentTaskBuilderCopy.setConfigJson(configJson.encode());
     return componentTaskBuilderCopy;
   }
 
@@ -713,10 +707,9 @@ public class EnvironmentDao {
   }
 
   private void setOperationConfig(ComponentTask.Builder componentTaskBuilder) {
-    Struct config = componentTaskBuilder.getConfig();
-    JsonObject configJson = JsonUtil.getJsonFromProto(config);
+    JsonObject configJson = new JsonObject(componentTaskBuilder.getConfigJson());
     configJson = configJson.getJsonObject("operationConfig", new JsonObject());
-    componentTaskBuilder.setConfig(JsonUtil.jsonToProtoBuilder(configJson, Struct.newBuilder()));
+    componentTaskBuilder.setConfigJson(configJson.encode());
   }
 
   private List<Environment> buildEnvironments(RowSet<Row> rowSet) {

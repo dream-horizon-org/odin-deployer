@@ -62,4 +62,5 @@ public class Constants {
 
   public static final String AWS_ACCESS_KEY_ID = "aws.accessKeyId";
   public static final String AWS_SECRET_ACCESS_KEY = "aws.secretAccessKey";
+  public static final String EMPTY_JSON = "{}";
 }

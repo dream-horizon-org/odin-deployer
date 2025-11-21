@@ -1,5 +1,6 @@
 package com.dream11.odin.util;
 
+import static com.dream11.odin.Constants.EMPTY_JSON;
 import static io.restassured.RestAssured.given;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -456,7 +457,7 @@ public class TestUtil {
                     .build())
             .build();
     return ComponentUtil.componentConfigToJson(
-        componentDefinition, componentProvisioningConfig, Struct.newBuilder().build());
+        componentDefinition, componentProvisioningConfig, EMPTY_JSON);
   }
 
   @SneakyThrows

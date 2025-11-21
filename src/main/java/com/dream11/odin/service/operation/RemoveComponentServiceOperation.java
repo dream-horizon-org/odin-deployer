@@ -25,6 +25,7 @@ import com.dream11.odin.validations.RemoveComponentValidator;
 import com.dream11.odin.validations.Validator;
 import com.dream11.queue.producer.MessageProducer;
 import com.google.inject.Inject;
+import io.vertx.core.json.JsonObject;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -62,8 +63,7 @@ public class RemoveComponentServiceOperation extends ServiceOperation {
       Long envId) {
     RemoveComponentRequestOptions removeComponentRequest =
         JsonUtil.jsonToProtoBuilder(
-                JsonUtil.getJsonFromProto(request.getConfig()),
-                RemoveComponentRequestOptions.newBuilder())
+                new JsonObject(request.getConfigJson()), RemoveComponentRequestOptions.newBuilder())
             .build();
     return new RemoveComponentValidator(
         componentTaskDao,
@@ -76,8 +76,7 @@ public class RemoveComponentServiceOperation extends ServiceOperation {
       OperateServiceRequest request, List<ComponentTaskEntity> previousComponentTaskEntities) {
     RemoveComponentRequestOptions removeComponentRequest =
         JsonUtil.jsonToProtoBuilder(
-                JsonUtil.getJsonFromProto(request.getConfig()),
-                RemoveComponentRequestOptions.newBuilder())
+                new JsonObject(request.getConfigJson()), RemoveComponentRequestOptions.newBuilder())
             .build();
     ComponentTaskEntity prevComponentTaskEntity =
         previousComponentTaskEntities.stream()

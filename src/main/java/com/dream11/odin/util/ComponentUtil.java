@@ -92,7 +92,7 @@ public class ComponentUtil {
         componentConfigToJson(
             componentData.getComponentDefinition(),
             componentData.getComponentProvisioningConfig(),
-            componentData.getOperationConfig());
+            componentData.getOperationConfigJson());
     return ComponentTaskEntity.builder()
         .serviceTaskEntity(serviceTaskEntity)
         .componentName(componentData.getComponentDefinition().getName())
@@ -265,7 +265,7 @@ public class ComponentUtil {
   public JsonObject componentConfigToJson(
       ComponentDefinition componentDefinition,
       ComponentProvisioningConfig componentProvisioningConfig,
-      Struct operationConfig) {
+      String operationConfigJson) {
     Map<String, Object> componentConfigMap =
         new HashMap<>(
             Map.of(
@@ -273,9 +273,8 @@ public class ComponentUtil {
                 JsonUtil.getJsonFromProto(componentDefinition),
                 Constants.PROVISIONING_CONFIG_KEY,
                 JsonUtil.getJsonFromProto(componentProvisioningConfig)));
-    if (operationConfig != null) {
-      componentConfigMap.put(
-          Constants.OPERATION_CONFIG_KEY, JsonUtil.getJsonFromProto(operationConfig));
+    if (operationConfigJson != null) {
+      componentConfigMap.put(Constants.OPERATION_CONFIG_KEY, new JsonObject(operationConfigJson));
     }
     return new JsonObject(componentConfigMap);
   }
@@ -456,10 +455,7 @@ public class ComponentUtil {
                             new JsonObject(componentAction.getFlavourConfig()), Struct.newBuilder())
                         .build())
                 .build())
-        .operationConfig(
-            JsonUtil.jsonToProtoBuilder(
-                    new JsonObject(componentAction.getOperationConfig()), Struct.newBuilder())
-                .build())
+        .operationConfigJson(new JsonObject(componentAction.getOperationConfig()).encode())
         .environmentProviderAccounts(
             JsonUtil.jsonToProtoBuilder(
                     new JsonObject(componentAction.getAccounts()), AccountInformation.newBuilder())
@@ -477,14 +473,10 @@ public class ComponentUtil {
             .setServiceAccountsSnapshot(providerAccountResponse)
             .setProviderAccountName(providerAccountResponse.getAccount().getName())
             .build();
-    Struct.Builder operationConfigBuilder = Struct.newBuilder();
+    JsonObject operationConfig = new JsonObject();
     if (componentTaskEntity.getConfig().containsKey(Constants.OPERATION_CONFIG_KEY)) {
-      operationConfigBuilder.putAllFields(
-          JsonUtil.jsonToProtoBuilder(
-                  componentTaskEntity.getConfig().getJsonObject(Constants.OPERATION_CONFIG_KEY),
-                  Struct.newBuilder())
-              .build()
-              .getFieldsMap());
+      operationConfig.mergeIn(
+          componentTaskEntity.getConfig().getJsonObject(Constants.OPERATION_CONFIG_KEY));
     }
     return ComponentData.builder()
         .componentDefinition(
@@ -499,7 +491,7 @@ public class ComponentUtil {
                         .getJsonObject(Constants.PROVISIONING_CONFIG_KEY),
                     ComponentProvisioningConfig.newBuilder())
                 .build())
-        .operationConfig(operationConfigBuilder.build())
+        .operationConfigJson(operationConfig.encode())
         .environmentProviderAccounts(accountInformation)
         .build();
   }
@@ -512,7 +504,7 @@ public class ComponentUtil {
         componentConfigToJson(
             componentData.getComponentDefinition(),
             componentData.getComponentProvisioningConfig(),
-            componentData.getOperationConfig());
+            componentData.getOperationConfigJson());
 
     return ComponentTaskEntity.builder()
         .serviceTaskEntity(serviceTaskEntity)

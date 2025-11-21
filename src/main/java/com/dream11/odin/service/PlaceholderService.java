@@ -90,7 +90,7 @@ public class PlaceholderService {
   public Single<ComponentData> replacePlaceholders(
       ComponentData componentData, RequestMetaContext requestMetaContext) {
 
-    if (componentData.getOperationConfig() != null) {
+    if (componentData.getOperationConfigJson() != null) {
       return componentEnrichmentService
           .addAccountInformationToComponentData(componentData, requestMetaContext)
           .map(
@@ -99,7 +99,7 @@ public class PlaceholderService {
                 return ComponentData.builder()
                     .componentDefinition(oldComponentData.getComponentDefinition())
                     .componentProvisioningConfig(oldComponentData.getComponentProvisioningConfig())
-                    .operationConfig(componentData.getOperationConfig())
+                    .operationConfigJson(componentData.getOperationConfigJson())
                     .environmentProviderAccounts(oldComponentData.getEnvironmentProviderAccounts())
                     .build();
               })
@@ -139,13 +139,9 @@ public class PlaceholderService {
             componentData.getComponentProvisioningConfig().getParams(), allPlaceholders);
 
     ComponentData.ComponentDataBuilder componentDataBuilder = ComponentData.builder();
-    if (componentData.getOperationConfig() != null) {
-      componentDataBuilder.operationConfig(
-          Struct.newBuilder()
-              .putAllFields(
-                  JsonUtil.replaceStructValues(componentData.getOperationConfig(), allPlaceholders)
-                      .getFieldsMap())
-              .build());
+    if (componentData.getOperationConfigJson() != null) {
+      componentDataBuilder.operationConfigJson(
+          JsonUtil.replaceValues(componentData.getOperationConfigJson(), allPlaceholders));
     }
 
     return componentDataBuilder

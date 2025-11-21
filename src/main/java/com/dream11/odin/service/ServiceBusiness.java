@@ -70,8 +70,6 @@ import com.dream11.queue.producer.MessageProducer;
 import com.dream11.rest.exception.RestException;
 import com.dream11.rest.exception.impl.RestErrorEnum;
 import com.google.inject.Inject;
-import com.google.protobuf.Struct;
-import com.google.protobuf.Value;
 import com.google.rpc.Code;
 import io.reactivex.Completable;
 import io.reactivex.Flowable;
@@ -892,7 +890,7 @@ public class ServiceBusiness {
               // Update operation config with plugin data
               OperateServiceRequest updatedOperateServiceRequest =
                   operateServiceRequest.toBuilder()
-                      .setConfig(updatedComponentData.getOperationConfig())
+                      .setConfigJson(updatedComponentData.getOperationConfigJson())
                       .build();
 
               String componentName = operation.getComponentName(operateServiceRequest);
@@ -958,7 +956,7 @@ public class ServiceBusiness {
             componentData -> {
               OperateServiceRequest updatedOperateServiceRequest =
                   operateServiceRequest.toBuilder()
-                      .setConfig(componentData.getOperationConfig())
+                      .setConfigJson(componentData.getOperationConfigJson())
                       .build();
 
               String componentName = operation.getComponentName(operateServiceRequest);
@@ -1075,7 +1073,7 @@ public class ServiceBusiness {
 
   private boolean isOperateComponentConfigDifferent(
       OperateServiceRequest operateServiceRequest, ComponentTaskEntity componentTaskEntity) {
-    return !JsonUtil.convertProtoToJsonSorted(operateServiceRequest.getConfig())
+    return !JsonUtil.convertToJsonSorted(operateServiceRequest.getConfigJson())
         .equals(
             JsonUtil.sortJsonObject(
                 componentTaskEntity.getConfig().getJsonObject("operationConfig")));
@@ -1083,8 +1081,7 @@ public class ServiceBusiness {
 
   private boolean isAddComponentConfigDifferent(
       OperateServiceRequest operateServiceRequest, ComponentTaskEntity componentTaskEntity) {
-
-    JsonObject request = JsonUtil.convertProtoToJson(operateServiceRequest.getConfig());
+    JsonObject request = new JsonObject(operateServiceRequest.getConfigJson());
 
     return !(JsonUtil.sortJsonObject(request.getJsonArray("componentDefinition").getJsonObject(0))
             .equals(
@@ -1357,7 +1354,7 @@ public class ServiceBusiness {
       String serviceName,
       String envName,
       String operationName,
-      Struct config) {
+      String configJson) {
     final UserDetails userDetails = ApplicationContext.getUserDetails();
 
     return environmentDao
@@ -1381,43 +1378,41 @@ public class ServiceBusiness {
                                   .setComponentName(componentName)
                                   .setIsComponentOperation(true)
                                   .setOperation(operationName)
-                                  .setConfig(config)
+                                  .setConfigJson(configJson)
                                   .build();
 
-                          Pair<Struct, Struct> diff =
+                          Pair<JsonObject, JsonObject> diff =
                               compareConfigs(
-                                  component.getConfig(), operateServiceRequest.getConfig());
+                                  new JsonObject(component.getConfigJson()),
+                                  new JsonObject(operateServiceRequest.getConfigJson()));
                           return OperateComponentDiffResponse.newBuilder()
-                              .setOldValues(diff.getLeft())
-                              .setNewValues(diff.getRight())
+                              .setOldValuesJson(diff.getLeft().encode())
+                              .setNewValuesJson(diff.getRight().encode())
                               .build();
                         }));
   }
 
-  private Pair<Struct, Struct> compareConfigs(Struct oldConfig, Struct newConfig) {
-    Struct.Builder oldDiffBuilder = Struct.newBuilder();
-    Struct.Builder newDiffBuilder = Struct.newBuilder();
+  private Pair<JsonObject, JsonObject> compareConfigs(JsonObject oldConfig, JsonObject newConfig) {
+    JsonObject oldDiffBuilder = new JsonObject();
+    JsonObject newDiffBuilder = new JsonObject();
 
-    Map<String, Value> oldFields = oldConfig.getFieldsMap();
-    Map<String, Value> newFields = newConfig.getFieldsMap();
+    newConfig.forEach(
+        entry -> {
+          String key = entry.getKey();
+          Object newValue = entry.getValue();
+          Object oldValue = oldConfig.getValue(key);
+          processField(key, newValue, oldValue, oldDiffBuilder, newDiffBuilder);
+        });
 
-    for (Map.Entry<String, Value> entry : newFields.entrySet()) {
-      String key = entry.getKey();
-      Value newValue = entry.getValue();
-      Value oldValue = oldFields.get(key);
-
-      processField(key, newValue, oldValue, oldDiffBuilder, newDiffBuilder);
-    }
-
-    return Pair.of(oldDiffBuilder.build(), newDiffBuilder.build());
+    return Pair.of(oldDiffBuilder, newDiffBuilder);
   }
 
   private void processField(
       String key,
-      Value newValue,
-      Value oldValue,
-      Struct.Builder oldDiffBuilder,
-      Struct.Builder newDiffBuilder) {
+      Object newValue,
+      Object oldValue,
+      JsonObject oldDiffBuilder,
+      JsonObject newDiffBuilder) {
     if (oldValue != null) {
       handleExistingOldValue(key, newValue, oldValue, oldDiffBuilder, newDiffBuilder);
     } else {
@@ -1427,65 +1422,43 @@ public class ServiceBusiness {
 
   private void handleExistingOldValue(
       String key,
-      Value newValue,
-      Value oldValue,
-      Struct.Builder oldDiffBuilder,
-      Struct.Builder newDiffBuilder) {
-    if (!oldValue.equals(newValue)) {
-      if (oldValue.hasStructValue() && newValue.hasStructValue()) {
-        Pair<Struct, Struct> nestedDiff =
-            compareConfigs(oldValue.getStructValue(), newValue.getStructValue());
+      Object newValueObject,
+      Object oldValueObject,
+      JsonObject oldDiffBuilder,
+      JsonObject newDiffBuilder) {
+    if (!oldValueObject.equals(newValueObject)) {
+      if (oldValueObject instanceof JsonObject oldValue
+          && newValueObject instanceof JsonObject newValue) {
+        Pair<JsonObject, JsonObject> nestedDiff = compareConfigs(oldValue, newValue);
         addNestedDiffs(key, nestedDiff, oldDiffBuilder, newDiffBuilder);
       } else {
-        oldDiffBuilder.putFields(key, oldValue);
-        newDiffBuilder.putFields(key, newValue);
+        oldDiffBuilder.put(key, oldValueObject);
+        newDiffBuilder.put(key, newValueObject);
       }
     }
   }
 
   private void handleNullOldValue(
-      String key, Value newValue, Struct.Builder oldDiffBuilder, Struct.Builder newDiffBuilder) {
-    if (newValue.hasStructValue()) {
-      oldDiffBuilder.putFields(
-          key,
-          Value.newBuilder()
-              .setStructValue(createDefaultStruct(newValue.getStructValue()))
-              .build());
+      String key, Object newValueObject, JsonObject oldDiffBuilder, JsonObject newDiffBuilder) {
+    if (newValueObject instanceof JsonObject newValue) {
+      oldDiffBuilder.put(key, newValue);
     } else {
-      oldDiffBuilder.putFields(key, Value.newBuilder().setStringValue(DEFAULT).build());
+      oldDiffBuilder.put(key, new JsonObject());
     }
-    newDiffBuilder.putFields(key, newValue);
+    newDiffBuilder.put(key, newValueObject);
   }
 
   private void addNestedDiffs(
       String key,
-      Pair<Struct, Struct> nestedDiff,
-      Struct.Builder oldDiffBuilder,
-      Struct.Builder newDiffBuilder) {
-    if (!nestedDiff.getLeft().getFieldsMap().isEmpty()) {
-      oldDiffBuilder.putFields(
-          key, Value.newBuilder().setStructValue(nestedDiff.getLeft()).build());
+      Pair<JsonObject, JsonObject> nestedDiff,
+      JsonObject oldDiffBuilder,
+      JsonObject newDiffBuilder) {
+    if (!nestedDiff.getLeft().isEmpty()) {
+      oldDiffBuilder.put(key, nestedDiff.getLeft());
     }
-    if (!nestedDiff.getRight().getFieldsMap().isEmpty()) {
-      newDiffBuilder.putFields(
-          key, Value.newBuilder().setStructValue(nestedDiff.getRight()).build());
+    if (!nestedDiff.getRight().isEmpty()) {
+      newDiffBuilder.put(key, nestedDiff.getRight());
     }
-  }
-
-  private Struct createDefaultStruct(Struct struct) {
-    Struct.Builder defaultStructBuilder = Struct.newBuilder();
-    for (Map.Entry<String, Value> entry : struct.getFieldsMap().entrySet()) {
-      String key = entry.getKey();
-      Value value = entry.getValue();
-      if (value.hasStructValue()) {
-        defaultStructBuilder.putFields(
-            key,
-            Value.newBuilder().setStructValue(createDefaultStruct(value.getStructValue())).build());
-      } else {
-        defaultStructBuilder.putFields(key, Value.newBuilder().setStringValue(DEFAULT).build());
-      }
-    }
-    return defaultStructBuilder.build();
   }
 
   public Flowable<StatusEnvironmentResponse> getAllServiceStatus(

@@ -28,12 +28,10 @@ import com.dream11.odin.setup.Setup;
 import com.dream11.odin.setup.TestChannelProvider;
 import com.dream11.odin.util.ApplicationUtil;
 import com.dream11.odin.util.EnvironmentUtil;
-import com.dream11.odin.util.JsonUtil;
 import com.dream11.odin.util.TestUtil;
 import com.dream11.queue.impl.sqs.SqsConfig;
 import com.dream11.queue.impl.sqs.SqsProducer;
 import com.github.tomakehurst.wiremock.junit5.WireMockTest;
-import com.google.protobuf.Struct;
 import io.grpc.ManagedChannel;
 import io.grpc.StatusRuntimeException;
 import io.reactivex.Flowable;
@@ -771,10 +769,10 @@ class EnvironmentServiceIT {
               assertThat(env.getServices(0).getComponentsCount()).isEqualTo(2);
               assertConfigMerged(
                   env.getServices(0).getComponents(0).getName(),
-                  env.getServices(0).getComponents(0).getConfig());
+                  env.getServices(0).getComponents(0).getConfigJson());
               assertConfigMerged(
                   env.getServices(0).getComponents(1).getName(),
-                  env.getServices(0).getComponents(1).getConfig());
+                  env.getServices(0).getComponents(1).getConfigJson());
             })
         .subscribe(describeEnvironmentResponse -> testContext.completeNow(), testContext::failNow);
   }
@@ -804,19 +802,19 @@ class EnvironmentServiceIT {
               assertThat(env.getServices(0).getComponents(0).getName()).isEqualTo("component1s1");
               assertThat(env.getServices(0).getComponents(0).getType()).isEqualTo("application");
               assertUndeployedComponentConfigNotPresent(
-                  "component1s1", env.getServices(0).getComponents(0).getConfig());
+                  "component1s1", env.getServices(0).getComponents(0).getConfigJson());
               assertConfigMerged(
                   env.getServices(0).getComponents(0).getName(),
-                  env.getServices(0).getComponents(0).getConfig());
+                  env.getServices(0).getComponents(0).getConfigJson());
             })
         .subscribe(describeEnvironmentResponse -> testContext.completeNow(), testContext::failNow);
   }
 
-  private void assertUndeployedComponentConfigNotPresent(String componentName, Struct config)
+  private void assertUndeployedComponentConfigNotPresent(String componentName, String configJson)
       throws SQLException {
     ResultSet componentTask =
         TestUtil.fetchLatestComponentTask(connection, "DEPLOY", componentName);
-    JsonObject mergedConfigJson = JsonUtil.getJsonFromProto(config);
+    JsonObject mergedConfigJson = new JsonObject(configJson);
     List<Pair<Long, String>> statusConfigPairUntilUndeployed = new ArrayList<>();
     List<Pair<Long, String>> statusConfigPairAfterUndeployed = new ArrayList<>();
     boolean foundUndeployed = false;
@@ -859,12 +857,12 @@ class EnvironmentServiceIT {
     assertThat(provisioningConfigKeyAfterUndeployed).contains(mergedConfigProvJsonValue);
   }
 
-  private void assertConfigMerged(String componentName, Struct config) throws SQLException {
+  private void assertConfigMerged(String componentName, String configJson) throws SQLException {
     ResultSet componentTask =
         TestUtil.fetchLatestComponentTask(connection, "DEPLOY", componentName);
     assertThat(componentTask.next()).isTrue();
     JsonObject dbConfig = new JsonObject(componentTask.getString("config"));
-    JsonObject mergedConfigJson = JsonUtil.getJsonFromProto(config);
+    JsonObject mergedConfigJson = new JsonObject(configJson);
     JsonObject compJson = dbConfig.getJsonObject("componentConfig").getJsonObject("config");
     JsonObject provJson = dbConfig.getJsonObject("provisioningConfig").getJsonObject("params");
     JsonObject operateJson = dbConfig.getJsonObject("operationConfig");
