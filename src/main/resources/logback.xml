@@ -8,12 +8,11 @@
   </encoder>
 </appender>
 
-<logger name="com.dream11" level="info"/>
+
 <logger name="io.netty" level="info"/>
 <logger name="io.grpc.netty" level="info"/>
 <logger name="software.amazon" level="info"/>
 <logger name="com.amazonaws" level="info"/>
-
 
 <root level="${ODIN_LOG_LEVEL:-info}">
   <appender-ref ref="STDOUT" />

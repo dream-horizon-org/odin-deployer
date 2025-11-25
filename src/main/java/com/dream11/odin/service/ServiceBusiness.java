@@ -116,6 +116,7 @@ public class ServiceBusiness {
   final ServiceTaskDao serviceTaskDao;
   final PlaceholderService placeholderService;
   final InterceptorService interceptorService;
+  final ComponentEnrichmentService componentEnrichmentService;
 
   private Flowable<DeployServiceResponse> deployService(
       ServiceDefinition serviceDefinition,
@@ -157,16 +158,17 @@ public class ServiceBusiness {
                       .build();
 
               return interceptorService
-                  .invokeInterceptors(componentDataMap, requestMetaContext)
+                  .invokeInterceptors(
+                      componentEnrichmentService.addOdinDiscoveryData(componentDataMap),
+                      requestMetaContext)
                   .flatMap(
                       interceptedComponentMap ->
                           placeholderService.replacePlaceholdersInComponents(
                               interceptedComponentMap, requestMetaContext))
-                  // run pre-deploy
                   .flatMapPublisher(
                       updatedComponentMap -> {
                         log.info(
-                            "Updated the componentMap using plugins for deploy for env {}, proceeding",
+                            "Updated the componentMap using interceptors for deploy for env {}, proceeding",
                             envName);
                         return serviceTaskDao
                             .getLatestNonHealthcheckServiceTask(

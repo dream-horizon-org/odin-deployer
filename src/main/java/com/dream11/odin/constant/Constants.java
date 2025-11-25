@@ -92,7 +92,6 @@ public class Constants {
   public static final String ODIN_COMPONENT_VERSION = "ODIN_COMPONENT_VERSION";
 
   public static final String OIDC = "oidc";
-  public static final String ID_TOKEN = "id_token";
   public static final String EMAIL = "email";
   public static final String GRANT_TYPE = "grant_type";
   public static final String AUTHORIZATION_CODE = "authorization_code";
@@ -104,4 +103,10 @@ public class Constants {
 
   public static final String CONTENT_TYPE = "Content-Type";
   public static final String APPLICATION_FORM_TYPE = "application/x-www-form-urlencoded";
+
+  public static final String ODIN_DISCOVERY_PROVIDER_SERVICE_CATEGORY = "DISCOVERY";
+  public static final String ODIN_DISCOVERY_ANNOTATION = "discovery.odin/address";
+  public static final String DISCOVERY_CONFIG_KEY = "discovery";
+  public static final String DISCOVERY_ANNOTATIONS_KEY = "discoveryAnnotations";
+  public static final String ODIN_ACCOUNT_PROVIDER = "ODIN";
 }

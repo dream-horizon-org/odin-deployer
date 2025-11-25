@@ -99,9 +99,7 @@ class ServiceServiceIT {
     flowableResponse
         .doOnNext(
             deployServiceResponse -> {
-              log.debug(
-                  String.format(
-                      "Received message from deployer: %s", deployServiceResponse.toString()));
+              log.debug("Received message from deployer: {}", deployServiceResponse);
               responseAutomata.switchState(deployServiceResponse.getServiceResponse());
             })
         .subscribe(
