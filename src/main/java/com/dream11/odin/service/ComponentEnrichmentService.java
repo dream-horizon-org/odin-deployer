@@ -210,9 +210,15 @@ public class ComponentEnrichmentService {
 
       if (value instanceof JsonObject jsonObject) {
         discoveryData.put(key, this.buildDiscoveryData(jsonObject));
-      } else if (value instanceof String || value instanceof JsonArray) {
-        // Assumes lists are only present in leaf nodes
+      } else if (value instanceof String) {
         discoveryData.put(key, JsonObject.of(Constants.ODIN_DISCOVERY_ANNOTATION, value));
+      } else if (value instanceof JsonArray jsonArray) {
+        // Convert json array to comma separated strings
+        discoveryData.put(
+            key,
+            JsonObject.of(
+                Constants.ODIN_DISCOVERY_ANNOTATION,
+                String.join(",", jsonArray.stream().map(Object::toString).toList())));
       } else {
         discoveryData.put(key, value);
       }
