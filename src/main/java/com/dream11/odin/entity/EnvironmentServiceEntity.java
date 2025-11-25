@@ -16,4 +16,14 @@ public class EnvironmentServiceEntity {
   JsonObject serviceConfig;
   String createdBy;
   String updatedBy;
+
+  public EnvironmentServiceEntity updateStatus(TaskStatus status) {
+    this.serviceStatus = status;
+    return this;
+  }
+
+  public EnvironmentServiceEntity updateAction(Action action) {
+    this.serviceAction = action;
+    return this;
+  }
 }

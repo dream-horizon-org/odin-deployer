@@ -14,7 +14,6 @@ import com.dream11.odin.dto.requestqueue.ServiceRequestQueueMessage;
 import com.dream11.odin.dto.v1.Environment;
 import com.dream11.odin.dto.v1.ServiceDefinition;
 import com.dream11.odin.entity.ServiceTaskEntity;
-import com.dream11.odin.grpc.service.ServiceResponse;
 import com.dream11.odin.injector.GuiceInjector;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -188,16 +187,6 @@ public class ServiceUtil {
     }
     // Else add -OPERATE.1 to service version
     return String.format("%s-OPERATE.1", serviceVersion);
-  }
-
-  public boolean isUndeployInProgressOrSuccessful(ServiceResponse serviceResponse) {
-    return Action.UNDEPLOY.getName().equals(serviceResponse.getServiceStatus().getServiceAction())
-        && (TaskStatus.IN_PROGRESS
-                .getValue()
-                .equals(serviceResponse.getServiceStatus().getServiceStatus())
-            || TaskStatus.SUCCESSFUL
-                .getValue()
-                .equals(serviceResponse.getServiceStatus().getServiceStatus()));
   }
 
   public boolean isOperateInProgress(ServiceTaskEntity serviceTaskEntity) {

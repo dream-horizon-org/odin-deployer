@@ -973,90 +973,133 @@ public class ServiceBusiness {
             .equals(componentTaskEntity.getConfig().getJsonObject("provisioningConfig")));
   }
 
-  public Completable undeployServiceValidator(
-      String envName, String serviceName, UserDetails userDetails) {
-
-    return environmentDao
-        .getEnvironmentByNameWithAllFields(userDetails.getOrgId(), envName)
-        .flatMapCompletable(
-            environment -> {
-              Validator validator = new Validator();
-              validator.add(
-                  new ServiceStatusValidatorForUndeploy(
-                      serviceTaskDao, serviceName, environment.getId()));
-              return validator.validateAll();
-            });
+  public Completable undeployServiceValidator(String envName, String serviceName, long orgId) {
+    Validator validator = new Validator();
+    validator.add(
+        new ServiceStatusValidatorForUndeploy(serviceComponentDao, serviceName, envName, orgId));
+    return validator.validateAll();
   }
 
   public Flowable<UndeployServiceResponse> undeployService(
-      String envName, String serviceName, UserDetails userDetails) {
+      String envName, String serviceName, UserDetails userDetails, String executionId) {
 
-    return undeployServiceValidator(envName, serviceName, userDetails)
-        .andThen(undeployServiceWithoutValidations(envName, serviceName, userDetails));
+    return undeployServiceValidator(envName, serviceName, userDetails.getOrgId())
+        .andThen(undeployServiceWithoutValidations(envName, serviceName, userDetails, executionId));
   }
 
   public Flowable<UndeployServiceResponse> undeployServiceWithoutValidations(
-      String envName, String serviceName, UserDetails userDetails) {
+      String envName, String serviceName, UserDetails userDetails, String executionId) {
 
     // TODO: handle service undeploy with no components
-    return Flowable.defer(
-        () ->
-            undeployComponents(serviceName, envName, userDetails, new ArrayList<>())
+    return undeployComponents(serviceName, envName, userDetails, executionId)
+        .map(
+            serviceResponse ->
+                UndeployServiceResponse.newBuilder().setServiceResponse(serviceResponse).build());
+  }
+
+  private boolean isUndeployInProgressOrSuccessful(ServiceResponse serviceResponse) {
+    return Action.UNDEPLOY.getName().equals(serviceResponse.getServiceStatus().getServiceAction())
+        && (TaskStatus.IN_PROGRESS
+                .getValue()
+                .equals(serviceResponse.getServiceStatus().getServiceStatus())
+            || TaskStatus.SUCCESSFUL
+                .getValue()
+                .equals(serviceResponse.getServiceStatus().getServiceStatus()));
+  }
+
+  private EnvironmentServiceEntityWithComponents
+      filterAndBuildEnvironmentServiceEntityWithComponents(
+          EnvironmentServiceEntityWithComponents environmentServiceEntityWithComponents) {
+
+    return environmentServiceEntityWithComponents
+        .updateComponents(
+            environmentServiceEntityWithComponents.getComponents().stream()
+                .filter(
+                    componentEntity ->
+                        !(componentEntity.getAction().equals(Action.UNDEPLOY)
+                            && componentEntity.getStatus().equals(TaskStatus.SUCCESSFUL)))
                 .map(
-                    serviceResponse ->
-                        UndeployServiceResponse.newBuilder()
-                            .setServiceResponse(serviceResponse)
-                            .build()));
+                    componentEntity ->
+                        componentEntity
+                            .updateAction(Action.UNDEPLOY)
+                            .updateStatus(TaskStatus.IN_PROGRESS))
+                .toList())
+        .updateEnvironmentServiceEntity(
+            environmentServiceEntityWithComponents
+                .getEnvironmentServiceEntity()
+                .updateAction(Action.UNDEPLOY)
+                .updateStatus(TaskStatus.IN_PROGRESS));
+  }
+
+  Map<ComponentIdentifier, ComponentData> buildComponentDataMap(
+      EnvironmentServiceEntityWithComponents environmentServiceEntityWithComponents) {
+    return environmentServiceEntityWithComponents.getComponents().stream()
+        .collect(
+            Collectors.toMap(
+                componentEntity ->
+                    ComponentUtil.buildComponentId(
+                        componentEntity.getName(), componentEntity.getAction()),
+                componentEntity ->
+                    ComponentData.builder()
+                        .componentDefinition(
+                            JsonUtil.jsonToProtoBuilder(
+                                    componentEntity.getConfig().getJsonObject("componentConfig"),
+                                    ComponentDefinition.newBuilder())
+                                .build())
+                        .componentProvisioningConfig(
+                            JsonUtil.jsonToProtoBuilder(
+                                    componentEntity.getConfig().getJsonObject("provisioningConfig"),
+                                    ComponentProvisioningConfig.newBuilder())
+                                .build())
+                        .environmentProviderAccounts(
+                            JsonUtil.jsonToProtoBuilder(
+                                    componentEntity.getAccountData(),
+                                    AccountInformation.newBuilder())
+                                .build())
+                        .build()));
   }
 
   private Flowable<ServiceResponse> undeployComponents(
       String serviceName,
       String environmentName,
       UserDetails userDetails,
-      List<String> components) {
+      String executionId) {
     return environmentDao
         .getEnvironmentWithServices(userDetails.getOrgId(), environmentName)
         .flatMapPublisher(
             environment ->
-                serviceTaskDao
-                    .getLatestNonHealthcheckServiceTask(environment.getId(), serviceName)
-                    .flatMapPublisher(
-                        serviceTaskEntity ->
-                            databasePollerService
-                                .pollDatabase(serviceTaskEntity.getId(), Action.UNDEPLOY)
-                                .flatMap(
-                                    serviceResponse -> {
-                                      if (ServiceUtil.isUndeployInProgressOrSuccessful(
-                                          serviceResponse)) {
-                                        return Flowable.just(serviceResponse);
-                                      }
-
-                                      // why are we going again to get service tasks?
-                                      return serviceTaskDao
-                                          .getLatestCompletedServiceTask(
-                                              environment.getId(), serviceName)
-                                          .flatMapPublisher(
-                                              latestServiceTask ->
-                                                  componentTaskDao
-                                                      .getLatestComponentTasks(serviceTaskEntity)
-                                                      .flatMapPublisher(
-                                                          componentTaskEntities ->
-                                                              // why are we going again to get
-                                                              // environment?
-                                                              environmentDao
-                                                                  .getEnvironmentByNameWithAllFields(
-                                                                      userDetails.getOrgId(),
-                                                                      environmentName)
-                                                                  .flatMapPublisher(
-                                                                      environmentObject ->
-                                                                          filterUndeployedComponentsAndApplyAction(
-                                                                              environmentObject,
-                                                                              componentTaskEntities,
-                                                                              userDetails,
-                                                                              components,
-                                                                              latestServiceTask,
-                                                                              Action.UNDEPLOY))));
-                                    })));
+            databasePollerService
+                    .pollDatabase(serviceName, environmentName, userDetails.getOrgId())
+                    .flatMap(
+                        serviceResponse ->
+                            isUndeployInProgressOrSuccessful(serviceResponse)
+                                ? Flowable.just(serviceResponse)
+                                : serviceComponentDao
+                                    .getServiceComponentStateInEnv(
+                                        userDetails.getOrgId(), environmentName, serviceName)
+                                    .flatMapPublisher(
+                                        environmentServiceEntityWithComponents -> {
+                                          EnvironmentServiceEntityWithComponents
+                                              updatedEnvironmentServiceEntity =
+                                                  filterAndBuildEnvironmentServiceEntityWithComponents(
+                                                      environmentServiceEntityWithComponents);
+                                          return orchestrateServiceAction(
+                                                  serviceName,
+                                                  environmentName,
+                                                  userDetails.getOrgId(),
+                                                  environment.getId(),
+                                                  updatedEnvironmentServiceEntity,
+                                                  executionId,
+                                                  buildComponentDataMap(
+                                                      updatedEnvironmentServiceEntity),
+                                                  Action.UNDEPLOY,
+                                                  true)
+                                              .andThen(
+                                                  databasePollerService.pollDatabase(
+                                                      serviceName,
+                                                      environmentName,
+                                                      userDetails.getOrgId()));
+                                        })));
   }
 
   private Flowable<ServiceResponse> filterUndeployedComponentsAndApplyAction(
@@ -1133,7 +1176,7 @@ public class ServiceBusiness {
     }
 
     List<ComponentAction> filteredComponentActions =
-        filterUpdeployedComponentActions(componentActions, undeployedComponentNames);
+        filterUndeployedComponentActions(componentActions, undeployedComponentNames);
 
     if (actionToApply == Action.UNDEPLOY) {
       filteredComponentActions =
@@ -1182,7 +1225,7 @@ public class ServiceBusiness {
     return DEPENDENT_COMPONENT_FAILURE_ERROR.equals(response.getString(ERROR_FIELD, ""));
   }
 
-  private List<ComponentAction> filterUpdeployedComponentActions(
+  private List<ComponentAction> filterUndeployedComponentActions(
       List<ComponentAction> componentActions, Set<String> componentsToRemove) {
     return componentActions.stream()
         .filter(componentAction -> !componentsToRemove.contains(componentAction.getComponentName()))
@@ -1224,7 +1267,8 @@ public class ServiceBusiness {
                   serviceNames.stream()
                       .map(
                           serviceName ->
-                              undeployServiceWithoutValidations(envName, serviceName, userDetails))
+                              undeployServiceWithoutValidations(
+                                  envName, serviceName, userDetails, ""))
                       .toList(),
                   objects ->
                       Arrays.stream(objects).map(UndeployServiceResponse.class::cast).toList());

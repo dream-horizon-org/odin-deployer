@@ -232,9 +232,7 @@ class ValidationUtilTest {
         __ -> {
           // Mock input data
           ServiceDefinition serviceDefinition =
-              ServiceDefinition.newBuilder()
-                  .setName("testService")
-                  .build();
+              ServiceDefinition.newBuilder().setName("testService").build();
           ServiceData serviceData =
               ServiceData.builder()
                   .serviceDefinition(serviceDefinition)

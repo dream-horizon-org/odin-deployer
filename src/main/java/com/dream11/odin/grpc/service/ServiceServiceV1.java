@@ -58,7 +58,10 @@ public class ServiceServiceV1 extends RxServiceServiceGrpc.ServiceServiceImplBas
             req ->
                 serviceBusiness
                     .undeployService(
-                        req.getEnvName(), req.getServiceName(), ApplicationContext.getUserDetails())
+                        req.getEnvName(),
+                        req.getServiceName(),
+                        ApplicationContext.getUserDetails(),
+                        ApplicationContext.getTraceId()) // todo: change to execution id
                     .onErrorResumeNext(
                         err -> {
                           log.error("Error while undeploying service", err);

@@ -17,4 +17,14 @@ public class ComponentEntity {
   String createdBy;
   String updatedBy;
   JsonObject accountData;
+
+  public ComponentEntity updateAction(Action action) {
+    this.action = action;
+    return this;
+  }
+
+  public ComponentEntity updateStatus(TaskStatus status) {
+    this.status = status;
+    return this;
+  }
 }

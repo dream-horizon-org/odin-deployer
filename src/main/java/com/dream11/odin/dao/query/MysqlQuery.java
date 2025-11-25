@@ -8,7 +8,7 @@ public class MysqlQuery {
 
   public static final String BY_ENVIRONMENT_NAME = " AND e.name = ?";
   public static final String BY_USER = " AND e.created_by = ?";
-  public static final String BY_ACCOUNT = " AND et.provider_account_name = ?";
+  public static final String BY_ACCOUNT = " AND ea.account_name = ?";
   public static final String REMOVE_DELETED_ENVIRONMENTS =
       " AND NOT ( a.name = 'DELETE_ENVIRONMENT' AND ea.status = " + "'SUCCESSFUL' ) ";
   private static final String SELECT_SERVICE_TASK_FIELDS =
