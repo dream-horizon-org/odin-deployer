@@ -43,6 +43,11 @@ Enhancement suggestions are tracked as GitHub issues. When creating an enhanceme
 * Add tests for new features
 * Update documentation for API changes
 
+### Commit Signing
+
+* Ensure that your commits are GPG- or SSH-signed
+* Unsigned commits may be rejected during review.
+
 ### Java Style Guide
 
 * Follow [Google Java Style Guide](https://google.github.io/styleguide/javaguide.html)
