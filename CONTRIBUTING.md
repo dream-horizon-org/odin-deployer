@@ -62,7 +62,7 @@ Enhancement suggestions are tracked as GitHub issues. When creating an enhanceme
 
 ## Community
 
-* Participate in [GitHub Discussions](https://github.com/ds-horizon/odin-deployer/discussions)
+* Participate in [GitHub Discussions](https://github.com/dream-horizon-org/odin-deployer/discussions)
 
 ## Questions?
 
