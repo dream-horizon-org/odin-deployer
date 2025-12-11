@@ -18,7 +18,7 @@ public class ComponentData {
   @JsonProperty("provisioning")
   ComponentProvisioningConfig componentProvisioningConfig;
 
-  @With Struct operationConfig;
+  @With String operationConfigJson;
   @With Struct stageConfig;
 
   @JsonProperty("accountInformation")

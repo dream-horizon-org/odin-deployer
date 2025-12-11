@@ -28,7 +28,6 @@ import com.dream11.odin.service.DatabasePollerService;
 import com.dream11.odin.service.InterceptorService;
 import com.dream11.odin.service.PlaceholderService;
 import com.dream11.odin.util.AccountUtils;
-import com.dream11.odin.util.ApplicationUtil;
 import com.dream11.odin.util.ComponentUtil;
 import com.dream11.odin.util.JsonUtil;
 import com.dream11.odin.util.ServiceUtil;
@@ -144,7 +143,7 @@ public abstract class Operation {
           .andThen(
               Single.just(
                   ComponentData.builder()
-                      .operationConfig(request.getConfig())
+                      .operationConfigJson(request.getConfigJson())
                       .componentDefinition(
                           ComponentDefinition.newBuilder().setName(componentName).build())
                       .build()));
@@ -161,8 +160,7 @@ public abstract class Operation {
     if (request.getOperation().equalsIgnoreCase(ServiceOperations.ADD_COMPONENT.name())) {
       AddComponentRequestOptions addComponentRequest =
           JsonUtil.jsonToProtoBuilder(
-                  JsonUtil.getJsonFromProto(request.getConfig()),
-                  AddComponentRequestOptions.newBuilder())
+                  new JsonObject(request.getConfigJson()), AddComponentRequestOptions.newBuilder())
               .build();
       componentDataBuilder
           .environmentProviderAccounts(
@@ -196,7 +194,8 @@ public abstract class Operation {
         ComponentId.builder().componentName(componentName).action(Action.OPERATE).build();
 
     Map<ComponentId, ComponentData> componentDataMap =
-        Map.of(componentId, componentDataBuilder.operationConfig(request.getConfig()).build());
+        Map.of(
+            componentId, componentDataBuilder.operationConfigJson(request.getConfigJson()).build());
     return validator
         .validateAll()
         .andThen(
@@ -340,8 +339,7 @@ public abstract class Operation {
       OperateServiceRequest request, ComponentData componentData) {
     AddComponentRequestOptions addComponentRequest =
         JsonUtil.jsonToProtoBuilder(
-                JsonUtil.getJsonFromProto(request.getConfig()),
-                AddComponentRequestOptions.newBuilder())
+                new JsonObject(request.getConfigJson()), AddComponentRequestOptions.newBuilder())
             .build();
     addComponentRequest =
         addComponentRequest.toBuilder()
@@ -351,9 +349,7 @@ public abstract class Operation {
 
     String addComponentRequestJsonString = JsonFormat.printer().print(addComponentRequest);
 
-    return request.toBuilder()
-        .setConfig(ApplicationUtil.toGrpcStruct(new JsonObject(addComponentRequestJsonString)))
-        .build();
+    return request.toBuilder().setConfigJson(addComponentRequestJsonString).build();
   }
 
   public Flowable<ComponentData> validateAndOperate(
@@ -368,7 +364,7 @@ public abstract class Operation {
       if (request.getOperation().equalsIgnoreCase(ServiceOperations.ADD_COMPONENT.name())) {
         AddComponentRequestOptions addComponentRequest =
             JsonUtil.jsonToProtoBuilder(
-                    JsonUtil.getJsonFromProto(request.getConfig()),
+                    new JsonObject(request.getConfigJson()),
                     AddComponentRequestOptions.newBuilder())
                 .build();
         return addComponentRequest.getComponentDefinition(0).getName();
@@ -377,7 +373,7 @@ public abstract class Operation {
           .equalsIgnoreCase(ServiceOperations.REMOVE_COMPONENT.name())) {
         RemoveComponentRequestOptions removeComponentRequest =
             JsonUtil.jsonToProtoBuilder(
-                    JsonUtil.getJsonFromProto(request.getConfig()),
+                    new JsonObject(request.getConfigJson()),
                     RemoveComponentRequestOptions.newBuilder())
                 .build();
         return removeComponentRequest.getComponentName();

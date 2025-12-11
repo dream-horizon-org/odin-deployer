@@ -28,6 +28,7 @@ import com.dream11.queue.producer.MessageProducer;
 import com.google.inject.Inject;
 import com.google.protobuf.Struct;
 import com.google.protobuf.Value;
+import io.vertx.core.json.JsonObject;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -69,8 +70,9 @@ public class ComponentOperation extends Operation {
 
   private ComponentProvisioningConfig updateComponentProvisioningConfigWithExtraEnvVars(
       OperateServiceRequest request, ComponentProvisioningConfig componentProvisioningConfig) {
+    JsonObject configJson = new JsonObject(request.getConfigJson());
 
-    if (!request.getConfig().getFieldsMap().containsKey(EXTRA_ENV_VARS)) {
+    if (!configJson.containsKey(EXTRA_ENV_VARS)) {
       return componentProvisioningConfig.toBuilder().build();
     }
 
@@ -84,18 +86,7 @@ public class ComponentOperation extends Operation {
                     Value.newBuilder().setStructValue(Struct.getDefaultInstance()).build())
                 .getStructValue());
 
-    request
-        .getConfig()
-        .getFieldsMap()
-        .get(EXTRA_ENV_VARS)
-        .getStructValue()
-        .getFieldsMap()
-        .forEach(
-            (key, value) -> {
-              if (!value.getStringValue().isEmpty()) {
-                extraEnvVars.put(key, value.getStringValue());
-              }
-            });
+    extraEnvVars.mergeIn(configJson.getJsonObject(EXTRA_ENV_VARS));
 
     Struct.Builder structBuilder = Struct.newBuilder();
     extraEnvVars.forEach(
@@ -140,7 +131,7 @@ public class ComponentOperation extends Operation {
         .dependsOn(new ArrayList<>()) // currently operation does not have dependencies
         .baseConfig(JsonUtil.getMapFromProto(componentDefinition.getConfig()))
         .flavourConfig(JsonUtil.getMapFromProto(newComponentProvisioningConfig.getParams()))
-        .operationConfig(JsonUtil.getMapFromProto(request.getConfig()))
+        .operationConfig(JsonUtil.getMapFromJsonObjectString(request.getConfigJson()))
         .accounts(
             JsonUtil.getMapFromProto(
                 componentData.getEnvironmentProviderAccounts().getServiceAccountsSnapshot()))

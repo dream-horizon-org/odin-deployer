@@ -1,5 +1,6 @@
 package com.dream11.odin.grpc.service;
 
+import static com.dream11.odin.Constants.EMPTY_JSON;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.dream11.grpc.util.ExceptionUtil;
@@ -21,12 +22,9 @@ import com.dream11.odin.util.ApplicationUtil;
 import com.dream11.odin.util.SharedDataUtil;
 import com.dream11.odin.util.TestUtil;
 import com.github.tomakehurst.wiremock.junit5.WireMockTest;
-import com.google.gson.Gson;
-import com.google.gson.JsonParser;
 import com.google.inject.Guice;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Struct;
-import com.google.protobuf.util.JsonFormat;
 import io.grpc.ManagedChannel;
 import io.grpc.StatusRuntimeException;
 import io.reactivex.Flowable;
@@ -1126,7 +1124,6 @@ class ServiceServiceIT {
     RxServiceServiceGrpc.RxServiceServiceStub RxServiceServiceStub =
         RxServiceServiceGrpc.newRxStub(channel);
 
-    Struct.Builder configBuilder = Struct.newBuilder();
     String configJson =
         """
                         {
@@ -1147,16 +1144,13 @@ class ServiceServiceIT {
                             }]
                         }""";
 
-    com.google.gson.JsonObject jsonObject = JsonParser.parseString(configJson).getAsJsonObject();
-    JsonFormat.parser().merge(new Gson().toJson(jsonObject), configBuilder);
-
     OperateServiceRequest request =
         OperateServiceRequest.newBuilder()
             .setServiceName(name)
             .setEnvName(name)
             .setIsComponentOperation(false)
             .setOperation(Constants.SERVICE_OPERATION_ADD_COMPONENT)
-            .setConfig(configBuilder.build())
+            .setConfigJson(configJson)
             .build();
 
     // Act
@@ -1204,8 +1198,6 @@ class ServiceServiceIT {
                         }
                         """
             .formatted(componentName, componentName);
-    com.google.gson.JsonObject jsonObject = JsonParser.parseString(configJson).getAsJsonObject();
-    JsonFormat.parser().merge(new Gson().toJson(jsonObject), configBuilder);
 
     OperateServiceRequest request =
         OperateServiceRequest.newBuilder()
@@ -1213,7 +1205,7 @@ class ServiceServiceIT {
             .setEnvName(Constants.TEST_ENV_NAME)
             .setIsComponentOperation(false)
             .setOperation(Constants.SERVICE_OPERATION_ADD_COMPONENT)
-            .setConfig(configBuilder.build())
+            .setConfigJson(configJson)
             .build();
 
     // Act
@@ -1238,12 +1230,6 @@ class ServiceServiceIT {
     RxServiceServiceGrpc.RxServiceServiceStub RxServiceServiceStub =
         RxServiceServiceGrpc.newRxStub(channel);
 
-    Struct.Builder configBuilder = Struct.newBuilder();
-    String configJson = "{}";
-
-    com.google.gson.JsonObject jsonObject = JsonParser.parseString(configJson).getAsJsonObject();
-    JsonFormat.parser().merge(new Gson().toJson(jsonObject), configBuilder);
-
     OperateServiceRequest request =
         OperateServiceRequest.newBuilder()
             .setServiceName(name)
@@ -1251,7 +1237,7 @@ class ServiceServiceIT {
             .setIsComponentOperation(true)
             .setComponentName("component1")
             .setOperation("component-operation")
-            .setConfig(configBuilder.build())
+            .setConfigJson(EMPTY_JSON)
             .build();
 
     // Act
@@ -1271,18 +1257,11 @@ class ServiceServiceIT {
   }
 
   @Test
-  void testOperateComponentWhenPreviousDeploymentFailed(VertxTestContext testContext)
-      throws InvalidProtocolBufferException {
+  void testOperateComponentWhenPreviousDeploymentFailed(VertxTestContext testContext) {
     // Arrange
     String name = "odin-operate-component-prev-deploy-failed";
     RxServiceServiceGrpc.RxServiceServiceStub RxServiceServiceStub =
         RxServiceServiceGrpc.newRxStub(channel);
-
-    Struct.Builder configBuilder = Struct.newBuilder();
-    String configJson = "{}";
-
-    com.google.gson.JsonObject jsonObject = JsonParser.parseString(configJson).getAsJsonObject();
-    JsonFormat.parser().merge(new Gson().toJson(jsonObject), configBuilder);
 
     OperateServiceRequest request =
         OperateServiceRequest.newBuilder()
@@ -1291,7 +1270,7 @@ class ServiceServiceIT {
             .setIsComponentOperation(true)
             .setComponentName("odindemo5")
             .setOperation("component-operation")
-            .setConfig(configBuilder.build())
+            .setConfigJson(EMPTY_JSON)
             .build();
 
     // Act
@@ -1320,17 +1299,6 @@ class ServiceServiceIT {
           RxServiceServiceGrpc.RxServiceServiceStub RxServiceServiceStub =
               RxServiceServiceGrpc.newRxStub(channel);
 
-          Struct.Builder configBuilder = Struct.newBuilder();
-          String configJson = "{}";
-
-          com.google.gson.JsonObject jsonObject =
-              JsonParser.parseString(configJson).getAsJsonObject();
-          try {
-            JsonFormat.parser().merge(new Gson().toJson(jsonObject), configBuilder);
-          } catch (InvalidProtocolBufferException e) {
-            throw new RuntimeException(e);
-          }
-
           OperateServiceRequest request =
               OperateServiceRequest.newBuilder()
                   .setServiceName(name)
@@ -1338,7 +1306,7 @@ class ServiceServiceIT {
                   .setIsComponentOperation(true)
                   .setComponentName("odindemo5")
                   .setOperation("component-operation")
-                  .setConfig(configBuilder.build())
+                  .setConfigJson(EMPTY_JSON)
                   .build();
 
           // Act
@@ -1414,16 +1382,13 @@ class ServiceServiceIT {
                         """
             .formatted(componentName2, componentName2);
 
-    com.google.gson.JsonObject jsonObject = JsonParser.parseString(configJson).getAsJsonObject();
-    JsonFormat.parser().merge(new Gson().toJson(jsonObject), configBuilder);
-
     OperateServiceRequest request =
         OperateServiceRequest.newBuilder()
             .setServiceName(serviceName)
             .setEnvName(envName)
             .setIsComponentOperation(false)
             .setOperation(Constants.SERVICE_OPERATION_ADD_COMPONENT)
-            .setConfig(configBuilder.build())
+            .setConfigJson(configJson)
             .build();
 
     // Act
@@ -1490,7 +1455,6 @@ class ServiceServiceIT {
     TestUtil.createComponentTask(
         connection, taskId, componentName1, component1Config, TaskStatus.SUCCESSFUL, Action.DEPLOY);
 
-    Struct.Builder configBuilder = Struct.newBuilder();
     String configJson =
         """
                         {
@@ -1513,16 +1477,13 @@ class ServiceServiceIT {
                         """
             .formatted(componentName2, componentName2);
 
-    com.google.gson.JsonObject jsonObject = JsonParser.parseString(configJson).getAsJsonObject();
-    JsonFormat.parser().merge(new Gson().toJson(jsonObject), configBuilder);
-
     OperateServiceRequest request =
         OperateServiceRequest.newBuilder()
             .setServiceName(serviceName)
             .setEnvName(envName)
             .setIsComponentOperation(false)
             .setOperation(Constants.SERVICE_OPERATION_ADD_COMPONENT)
-            .setConfig(configBuilder.build())
+            .setConfigJson(configJson)
             .build();
 
     // Act
@@ -1589,7 +1550,6 @@ class ServiceServiceIT {
     TestUtil.createComponentTask(
         connection, taskId, componentName1, component1Config, TaskStatus.SUCCESSFUL, Action.DEPLOY);
 
-    Struct.Builder configBuilder = Struct.newBuilder();
     String configJson =
         """
                         {
@@ -1612,16 +1572,13 @@ class ServiceServiceIT {
                         """
             .formatted(componentName2, componentName2);
 
-    com.google.gson.JsonObject jsonObject = JsonParser.parseString(configJson).getAsJsonObject();
-    JsonFormat.parser().merge(new Gson().toJson(jsonObject), configBuilder);
-
     OperateServiceRequest request =
         OperateServiceRequest.newBuilder()
             .setServiceName(serviceName)
             .setEnvName(envName)
             .setIsComponentOperation(false)
             .setOperation(Constants.SERVICE_OPERATION_ADD_COMPONENT)
-            .setConfig(configBuilder.build())
+            .setConfigJson(configJson)
             .build();
 
     // Act
@@ -1710,8 +1667,6 @@ class ServiceServiceIT {
     RxServiceServiceGrpc.RxServiceServiceStub RxServiceServiceStub =
         RxServiceServiceGrpc.newRxStub(channel);
 
-    Struct.Builder configBuilder = Struct.newBuilder();
-    String configJson = "{\"component_name\":\"" + componentName1 + "\"}";
     JsonObject component1Config =
         TestUtil.getComponentConfig(
             componentName1,
@@ -1727,9 +1682,6 @@ class ServiceServiceIT {
             "container",
             Map.of());
 
-    com.google.gson.JsonObject jsonObject = JsonParser.parseString(configJson).getAsJsonObject();
-    JsonFormat.parser().merge(new Gson().toJson(jsonObject), configBuilder);
-
     // Create service task
     Integer taskId =
         TestUtil.createServiceTask(
@@ -1744,7 +1696,7 @@ class ServiceServiceIT {
         OperateServiceRequest.newBuilder()
             .setServiceName(serviceName)
             .setEnvName(envName)
-            .setConfig(configBuilder.build())
+            .setConfigJson(JsonObject.of("component_name", componentName1).encode())
             .setIsComponentOperation(false)
             .setOperation("remove_component")
             .build();
@@ -1793,8 +1745,6 @@ class ServiceServiceIT {
     RxServiceServiceGrpc.RxServiceServiceStub RxServiceServiceStub =
         RxServiceServiceGrpc.newRxStub(channel);
 
-    Struct.Builder configBuilder = Struct.newBuilder();
-    String configJson = "{\"component_name\":\"" + componentName1 + "\"}";
     JsonObject component1Config =
         TestUtil.getComponentConfig(
             componentName1,
@@ -1810,9 +1760,6 @@ class ServiceServiceIT {
             "container",
             Map.of());
 
-    com.google.gson.JsonObject jsonObject = JsonParser.parseString(configJson).getAsJsonObject();
-    JsonFormat.parser().merge(new Gson().toJson(jsonObject), configBuilder);
-
     // Create service task
     Integer taskId =
         TestUtil.createServiceTask(
@@ -1827,7 +1774,7 @@ class ServiceServiceIT {
         OperateServiceRequest.newBuilder()
             .setServiceName(serviceName)
             .setEnvName(envName)
-            .setConfig(configBuilder.build())
+            .setConfigJson(JsonObject.of("component_name", componentName1).encode())
             .setIsComponentOperation(false)
             .setOperation("remove_component")
             .build();
@@ -1906,7 +1853,6 @@ class ServiceServiceIT {
         RxServiceServiceGrpc.newRxStub(channel);
 
     String componentName = "cj-frontend-v1";
-    Struct.Builder configBuilder = Struct.newBuilder();
     String configJson =
         """
                         {
@@ -1929,9 +1875,6 @@ class ServiceServiceIT {
                         """
             .formatted(componentName, componentName);
 
-    com.google.gson.JsonObject jsonObject = JsonParser.parseString(configJson).getAsJsonObject();
-    JsonFormat.parser().merge(new Gson().toJson(jsonObject), configBuilder);
-
     OperateServiceRequest request =
         OperateServiceRequest.newBuilder()
             .setServiceName(name)
@@ -1939,7 +1882,7 @@ class ServiceServiceIT {
             .setIsComponentOperation(false)
             .setOperation(Constants.SERVICE_OPERATION_ADD_COMPONENT)
             .setComponentName("cj-frontend-v1")
-            .setConfig(configBuilder.build())
+            .setConfigJson(configJson)
             .build();
 
     // Act
@@ -1978,7 +1921,6 @@ class ServiceServiceIT {
     RxServiceServiceGrpc.RxServiceServiceStub RxServiceServiceStub =
         RxServiceServiceGrpc.newRxStub(channel);
 
-    Struct.Builder configBuilder = Struct.newBuilder();
     String configJson =
         """
                         {
@@ -2000,8 +1942,6 @@ class ServiceServiceIT {
                         }
                         """
             .formatted(componentName, componentName);
-    JsonObject jsonObject = new JsonObject(configJson);
-    JsonFormat.parser().merge(jsonObject.toString(), configBuilder);
 
     OperateServiceRequest request =
         OperateServiceRequest.newBuilder()
@@ -2009,7 +1949,7 @@ class ServiceServiceIT {
             .setEnvName(envName)
             .setIsComponentOperation(false)
             .setOperation(Constants.SERVICE_OPERATION_ADD_COMPONENT)
-            .setConfig(configBuilder.build())
+            .setConfigJson(configJson)
             .build();
 
     // Create service task
@@ -2069,17 +2009,13 @@ class ServiceServiceIT {
     RxServiceServiceGrpc.RxServiceServiceStub RxServiceServiceStub =
         RxServiceServiceGrpc.newRxStub(channel);
 
-    Struct.Builder configBuilder = Struct.newBuilder();
-    String configJson = "{\"component_name\":\"%s\"}".formatted(componentName);
-
-    com.google.gson.JsonObject jsonObject = JsonParser.parseString(configJson).getAsJsonObject();
-    JsonFormat.parser().merge(new Gson().toJson(jsonObject), configBuilder);
+    String configJson = JsonObject.of("component_name", componentName).encode();
 
     OperateServiceRequest request =
         OperateServiceRequest.newBuilder()
             .setServiceName(serviceName)
             .setEnvName(envName)
-            .setConfig(configBuilder.build())
+            .setConfigJson(configJson)
             .setIsComponentOperation(false)
             .setOperation("remove_component")
             .build();
@@ -2120,17 +2056,13 @@ class ServiceServiceIT {
     RxServiceServiceGrpc.RxServiceServiceStub RxServiceServiceStub =
         RxServiceServiceGrpc.newRxStub(channel);
 
-    Struct.Builder configBuilder = Struct.newBuilder();
-    String configJson = "{\"component_name\":\"random-component\"}";
-
-    com.google.gson.JsonObject jsonObject = JsonParser.parseString(configJson).getAsJsonObject();
-    JsonFormat.parser().merge(new Gson().toJson(jsonObject), configBuilder);
+    String configJson = JsonObject.of("component_name", "random-component").encode();
 
     OperateServiceRequest request =
         OperateServiceRequest.newBuilder()
             .setServiceName(serviceName)
             .setEnvName(envName)
-            .setConfig(configBuilder.build())
+            .setConfigJson(configJson)
             .setIsComponentOperation(false)
             .setOperation("remove_component")
             .build();
@@ -2184,10 +2116,14 @@ class ServiceServiceIT {
         RxServiceServiceGrpc.newRxStub(channel);
 
     String configJson =
-        "{\"artifact_version\": \"1.0.31\",\"num_instances\":10 ,\"extraEnvVars\":{\"LOG_ENABLED\":\"true\"}}";
-    Struct.Builder configBuilder = Struct.newBuilder();
-    com.google.gson.JsonObject jsonObject = JsonParser.parseString(configJson).getAsJsonObject();
-    JsonFormat.parser().merge(new Gson().toJson(jsonObject), configBuilder);
+        JsonObject.of(
+                "artifact_version",
+                "1.0.31",
+                "num_instances",
+                10,
+                "extraEnvVars",
+                JsonObject.of("LOG_ENABLED", "true"))
+            .encode();
 
     OperateServiceRequest request =
         OperateServiceRequest.newBuilder()
@@ -2196,7 +2132,7 @@ class ServiceServiceIT {
             .setIsComponentOperation(true)
             .setOperation("redeploy")
             .setComponentName(componentName)
-            .setConfig(configBuilder.build())
+            .setConfigJson(configJson)
             .build();
     ResponseState finalState = new Operate(true, true);
     ResponseState initialState = new Validate(false, true, finalState);
@@ -2257,11 +2193,14 @@ class ServiceServiceIT {
         RxServiceServiceGrpc.newRxStub(channel);
 
     String configJson =
-        "{\"artifact_version\": \"1.0.31\",\"num_instances\":10 ,\"extraEnvVars\":{\"LOG_ENABLED\":\"true\"}}";
-
-    Struct.Builder configBuilder = Struct.newBuilder();
-    com.google.gson.JsonObject jsonObject = JsonParser.parseString(configJson).getAsJsonObject();
-    JsonFormat.parser().merge(new Gson().toJson(jsonObject), configBuilder);
+        JsonObject.of(
+                "artifact_version",
+                "1.0.31",
+                "num_instances",
+                10,
+                "extraEnvVars",
+                JsonObject.of("LOG_ENABLED", "true"))
+            .encode();
 
     OperateServiceRequest request =
         OperateServiceRequest.newBuilder()
@@ -2270,7 +2209,7 @@ class ServiceServiceIT {
             .setIsComponentOperation(true)
             .setOperation("redeploy")
             .setComponentName(componentName)
-            .setConfig(configBuilder.build())
+            .setConfigJson(configJson)
             .build();
     ResponseState finalState = new Operate(true, true);
     ResponseState initialState = new Validate(false, true, finalState);
@@ -2385,17 +2324,13 @@ class ServiceServiceIT {
                         }
                         """;
 
-    Struct.Builder configBuilder = Struct.newBuilder();
-    com.google.gson.JsonObject jsonObject = JsonParser.parseString(configJson).getAsJsonObject();
-    JsonFormat.parser().merge(new Gson().toJson(jsonObject), configBuilder);
-
     OperateComponentDiffRequest request =
         OperateComponentDiffRequest.newBuilder()
             .setServiceName(serviceName)
             .setEnvName(envName)
             .setOperationName("component_operation")
             .setComponentName(componentName)
-            .setConfig(configBuilder.build())
+            .setConfigJson(configJson)
             .build();
 
     Single<OperateComponentDiffResponse> flowableResponse =
@@ -2404,10 +2339,8 @@ class ServiceServiceIT {
     // Assert
     flowableResponse.subscribe(
         operateServiceResponse -> {
-          Struct.Builder structBuilder = Struct.newBuilder();
-          com.google.gson.JsonObject structJson =
-              JsonParser.parseString(
-                      """
+          String oldConfig =
+              """
                                                     {
                                                         "artifact": {
                                                             "version": "1.0.0"
@@ -2421,16 +2354,10 @@ class ServiceServiceIT {
                                                             "sshUser": "<default>"
                                                         }
                                                     }
-                                                        """)
-                  .getAsJsonObject();
-          JsonFormat.parser().merge(structJson.toString(), structBuilder);
+                                                        """;
 
-          Struct oldConfig = structBuilder.build();
-
-          Struct.Builder newStructBuilder = Struct.newBuilder();
-          com.google.gson.JsonObject newStructJson =
-              JsonParser.parseString(
-                      """
+          String newConfig =
+              """
                                                     {
                                                         "artifact": {
                                                             "version": "1.2.0"
@@ -2444,15 +2371,10 @@ class ServiceServiceIT {
                                                             "sshUser": "ec2-user"
                                                         }
                                                     }
-                                                        """)
-                  .getAsJsonObject();
-          JsonFormat.parser().merge(newStructJson.toString(), newStructBuilder);
+                                                        """;
 
-          Struct newConfig = newStructBuilder.build();
-
-          Struct expectedOldDiff = operateServiceResponse.getOldValues();
-
-          Struct expectedNewDiff = operateServiceResponse.getNewValues();
+          String expectedOldDiff = operateServiceResponse.getOldValuesJson();
+          String expectedNewDiff = operateServiceResponse.getNewValuesJson();
 
           assertThat(expectedOldDiff).isEqualTo(oldConfig);
           assertThat(expectedNewDiff).isEqualTo(newConfig);
@@ -2496,9 +2418,6 @@ class ServiceServiceIT {
                         }
                         """
             .formatted(componentName, componentName);
-    Struct.Builder configBuilder = Struct.newBuilder();
-    com.google.gson.JsonObject jsonObject = JsonParser.parseString(configJson).getAsJsonObject();
-    JsonFormat.parser().merge(new Gson().toJson(jsonObject), configBuilder);
 
     // Create service task
     int id =
@@ -2514,7 +2433,7 @@ class ServiceServiceIT {
             .setEnvName(envName)
             .setIsComponentOperation(false)
             .setOperation(Constants.SERVICE_OPERATION_ADD_COMPONENT)
-            .setConfig(configBuilder.build())
+            .setConfigJson(configJson)
             .build();
 
     // Act
@@ -2569,9 +2488,6 @@ class ServiceServiceIT {
                         }
                         """
             .formatted(componentName, componentName);
-    Struct.Builder configBuilder = Struct.newBuilder();
-    com.google.gson.JsonObject jsonObject = JsonParser.parseString(configJson).getAsJsonObject();
-    JsonFormat.parser().merge(new Gson().toJson(jsonObject), configBuilder);
 
     // Create service task
     int id =
@@ -2586,7 +2502,7 @@ class ServiceServiceIT {
             .setEnvName(envName)
             .setIsComponentOperation(false)
             .setOperation(Constants.SERVICE_OPERATION_ADD_COMPONENT)
-            .setConfig(configBuilder.build())
+            .setConfigJson(configJson)
             .build();
 
     // Act

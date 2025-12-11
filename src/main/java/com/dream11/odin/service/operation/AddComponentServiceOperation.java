@@ -25,6 +25,7 @@ import com.dream11.odin.validations.AddComponentValidator;
 import com.dream11.odin.validations.Validator;
 import com.dream11.queue.producer.MessageProducer;
 import com.google.inject.Inject;
+import io.vertx.core.json.JsonObject;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -60,8 +61,7 @@ public class AddComponentServiceOperation extends ServiceOperation {
       Long envId) {
     AddComponentRequestOptions addComponentRequest =
         JsonUtil.jsonToProtoBuilder(
-                JsonUtil.getJsonFromProto(request.getConfig()),
-                AddComponentRequestOptions.newBuilder())
+                new JsonObject(request.getConfigJson()), AddComponentRequestOptions.newBuilder())
             .build();
     return new AddComponentValidator(
         componentTaskDao,
@@ -74,8 +74,7 @@ public class AddComponentServiceOperation extends ServiceOperation {
       OperateServiceRequest request, List<ComponentTaskEntity> previousComponentTaskEntities) {
     AddComponentRequestOptions addComponentRequest =
         JsonUtil.jsonToProtoBuilder(
-                JsonUtil.getJsonFromProto(request.getConfig()),
-                AddComponentRequestOptions.newBuilder())
+                new JsonObject(request.getConfigJson()), AddComponentRequestOptions.newBuilder())
             .build();
     // Currently adding only single component is support
     ComponentDefinition componentDefinition =

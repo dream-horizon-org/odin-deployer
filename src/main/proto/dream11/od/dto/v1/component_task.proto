@@ -18,5 +18,5 @@ message ComponentTask {
   optional string type = 9;
   optional string status = 10;
   optional int64 service_deployment_id = 11;
-  optional google.protobuf.Struct config = 12;
+  optional string config_json = 12;
 }

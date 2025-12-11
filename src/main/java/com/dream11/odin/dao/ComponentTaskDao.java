@@ -22,7 +22,6 @@ import com.dream11.odin.entity.ServiceTaskEntity;
 import com.dream11.odin.util.JsonUtil;
 import com.dream11.odin.util.SingleUtil;
 import com.google.inject.Inject;
-import com.google.protobuf.Struct;
 import io.reactivex.Single;
 import io.vertx.core.json.JsonObject;
 import io.vertx.reactivex.sqlclient.Row;
@@ -194,14 +193,11 @@ public class ComponentTaskDao {
                                                 .getJsonObject(Constants.PROVISIONING_CONFIG_KEY),
                                             ComponentProvisioningConfig.newBuilder())
                                         .build())
-                                .operationConfig(
-                                    JsonUtil.jsonToProtoBuilder(
-                                            row.getJsonObject(Constants.COL_COMPONENT_CONFIG)
-                                                .getJsonObject(
-                                                    Constants.OPERATION_CONFIG_KEY,
-                                                    new JsonObject()),
-                                            Struct.newBuilder())
-                                        .build())
+                                .operationConfigJson(
+                                    row.getJsonObject(Constants.COL_COMPONENT_CONFIG)
+                                        .getJsonObject(
+                                            Constants.OPERATION_CONFIG_KEY, new JsonObject())
+                                        .encode())
                                 .build();
                         return ComponentDataStatus.builder()
                             .componentData(componentData)

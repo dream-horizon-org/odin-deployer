@@ -38,7 +38,6 @@ import com.dream11.odin.util.RxJavaUtil;
 import com.dream11.odin.util.ServiceUtil;
 import com.dream11.odin.util.SingleUtil;
 import com.google.inject.Inject;
-import com.google.protobuf.Struct;
 import io.reactivex.Maybe;
 import io.reactivex.Single;
 import io.vertx.core.json.JsonObject;
@@ -421,19 +420,20 @@ public class ServiceTaskDao {
                 COMPONENT_NAME,
                 !StringUtils.isEmpty(request.getComponentName())
                     ? request.getComponentName()
-                    : extractComponentNameFromConfig(request.getOperation(), request.getConfig()))
+                    : extractComponentNameFromConfig(
+                        request.getOperation(),
+                        JsonUtil.convertToJsonSorted(request.getConfigJson())))
             .put(OPERATION_NAME, request.getOperation());
     return serviceTaskConfig.put(OPERATION_CONFIG_KEY, operationConfig);
   }
 
-  private String extractComponentNameFromConfig(String operationName, Struct config) {
+  private String extractComponentNameFromConfig(String operationName, JsonObject config) {
     return switch (operationName) {
-      case SERVICE_OPERATION_ADD_COMPONENT -> JsonUtil.convertProtoToJsonSorted(config)
+      case SERVICE_OPERATION_ADD_COMPONENT -> config
           .getJsonArray(COMPONENT_DEFINITION)
           .getJsonObject(0)
           .getString(NAME);
-      case SERVICE_OPERATION_REMOVE_COMPONENT -> JsonUtil.convertProtoToJsonSorted(config)
-          .getString(LEGACY_COMPONENT_NAME);
+      case SERVICE_OPERATION_REMOVE_COMPONENT -> config.getString(LEGACY_COMPONENT_NAME);
       default -> "";
     };
   }

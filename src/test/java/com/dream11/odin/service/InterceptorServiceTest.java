@@ -1,5 +1,6 @@
 package com.dream11.odin.service;
 
+import static com.dream11.odin.Constants.EMPTY_JSON;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -25,7 +26,6 @@ import com.dream11.odin.util.SharedDataUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.protobuf.Message;
-import com.google.protobuf.Struct;
 import io.reactivex.Single;
 import io.vertx.core.json.JsonObject;
 import io.vertx.reactivex.ext.web.client.HttpRequest;
@@ -308,7 +308,7 @@ class InterceptorServiceTest {
             ComponentDefinition.newBuilder().setName("test-component").setVersion("1.0.0").build())
         .componentProvisioningConfig(
             ComponentProvisioningConfig.newBuilder().setComponentName("test-component").build())
-        .operationConfig(Struct.newBuilder().build())
+        .operationConfigJson(EMPTY_JSON)
         .environmentProviderAccounts(AccountInformation.newBuilder().build())
         .build();
   }

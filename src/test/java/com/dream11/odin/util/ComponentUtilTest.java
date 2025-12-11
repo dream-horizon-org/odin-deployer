@@ -1,5 +1,6 @@
 package com.dream11.odin.util;
 
+import static com.dream11.odin.Constants.EMPTY_JSON;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -27,7 +28,6 @@ import com.dream11.odin.entity.ServiceTaskEntity;
 import com.dream11.odin.grpc.provideraccount.v1.GetProviderAccountResponse;
 import com.dream11.odin.injector.GuiceInjector;
 import com.google.inject.Guice;
-import com.google.protobuf.Struct;
 import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
@@ -386,7 +386,7 @@ class ComponentUtilTest {
           // Call the method
           JsonObject jsonObject =
               ComponentUtil.componentConfigToJson(
-                  componentDefinition, componentProvisioningConfig, Struct.newBuilder().build());
+                  componentDefinition, componentProvisioningConfig, EMPTY_JSON);
 
           // Assertions
           assertThat(jsonObject).isNotNull();

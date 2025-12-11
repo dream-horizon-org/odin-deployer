@@ -110,7 +110,7 @@ public class ValidationUtil {
         ComponentUtil.componentConfigToJson(
             componentData.getComponentDefinition(),
             componentData.getComponentProvisioningConfig(),
-            componentData.getOperationConfig());
+            componentData.getOperationConfigJson());
     return ComponentValidateTaskEntity.builder()
         .accounts(JsonUtil.getJsonFromProto(componentData.getEnvironmentProviderAccounts()))
         .serviceValidateTaskEntity(serviceValidateTaskEntity)

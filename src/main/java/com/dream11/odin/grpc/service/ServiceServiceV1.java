@@ -72,7 +72,7 @@ public class ServiceServiceV1 extends RxServiceServiceGrpc.ServiceServiceImplBas
                     req.getServiceName(),
                     req.getEnvName(),
                     req.getOperationName(),
-                    req.getConfig())
+                    req.getConfigJson())
                 .onErrorResumeNext(
                     err -> {
                       log.error(

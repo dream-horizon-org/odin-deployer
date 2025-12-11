@@ -79,7 +79,7 @@ public class ComponentEnrichmentService {
                           .componentDefinition(oldComponentData.getComponentDefinition())
                           .componentProvisioningConfig(
                               oldComponentData.getComponentProvisioningConfig())
-                          .operationConfig(componentData.getOperationConfig())
+                          .operationConfigJson(componentData.getOperationConfigJson())
                           .environmentProviderAccounts(
                               oldComponentData.getEnvironmentProviderAccounts())
                           .build())

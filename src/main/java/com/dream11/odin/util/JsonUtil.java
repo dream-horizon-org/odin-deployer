@@ -69,6 +69,13 @@ public class JsonUtil {
         .readValue(JsonFormat.printer().preservingProtoFieldNames().print(message), HashMap.class);
   }
 
+  @SneakyThrows
+  public Map<String, Object> getMapFromJsonObjectString(String jsonString) {
+    return SharedDataUtil.getInstance(GuiceInjector.class)
+        .getInstance(ObjectMapper.class)
+        .readValue(jsonString, HashMap.class);
+  }
+
   public <T> List<T> rowSetToList(RowSet<Row> rows, Class<T> clazz) throws JsonProcessingException {
     ObjectMapper objectMapper = getObjectMapper();
     List<T> list = new ArrayList<>();
@@ -84,6 +91,12 @@ public class JsonUtil {
     json = customReplace(json, replacements);
     String updatedStruct = StringSubstitutor.replace(json, replacements);
     return JsonUtil.jsonToProtoBuilder(new JsonObject(updatedStruct), Struct.newBuilder()).build();
+  }
+
+  public String replaceValues(String jsonString, Map<String, String> replacements) {
+    JsonObject json = new JsonObject(jsonString);
+    json = customReplace(json, replacements);
+    return StringSubstitutor.replace(json, replacements);
   }
 
   private static JsonObject customReplace(JsonObject json, Map<String, String> replacements) {
@@ -159,6 +172,16 @@ public class JsonUtil {
   public JsonNode convertProtoToJsonNode(Struct config) {
     String jsonString = JsonFormat.printer().print(config);
     return getObjectMapper().readTree(jsonString);
+  }
+
+  @SneakyThrows
+  public JsonNode convertToJsonNode(String jsonString) {
+    return getObjectMapper().readTree(jsonString);
+  }
+
+  @SneakyThrows
+  public JsonObject convertToJsonSorted(String jsonString) {
+    return JsonObject.mapFrom(sortJsonNode(getObjectMapper().readTree(jsonString)));
   }
 
   public JsonObject convertProtoToJsonSorted(Struct config) {

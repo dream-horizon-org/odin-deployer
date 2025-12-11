@@ -4,7 +4,6 @@ import com.dream11.odin.ApplicationContext;
 import com.dream11.odin.dto.request.OperateRequest;
 import com.dream11.odin.grpc.service.OperateServiceRequest;
 import com.dream11.odin.service.ServiceBusiness;
-import com.dream11.odin.util.ApplicationUtil;
 import com.dream11.rest.annotation.Timeout;
 import com.google.inject.Inject;
 import hu.akarnokd.rxjava3.bridge.RxJavaBridge;
@@ -12,7 +11,6 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.vertx.core.json.Json;
-import io.vertx.core.json.JsonObject;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.ws.rs.Consumes;
@@ -53,9 +51,7 @@ public class Operate {
             .setServiceName(serviceName)
             .setIsComponentOperation(true)
             .setOperation(operateRequest.getOperationName())
-            .setConfig(
-                ApplicationUtil.toGrpcStruct(
-                    new JsonObject(Json.encode(operateRequest.getConfig()))))
+            .setConfigJson(Json.encode(operateRequest.getConfig()))
             .build();
 
     return RxJavaBridge.toV3Single(serviceBusiness.operateServiceFromRestEndpoint(req, traceId))
