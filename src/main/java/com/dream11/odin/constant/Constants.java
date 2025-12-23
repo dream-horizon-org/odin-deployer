@@ -33,7 +33,7 @@ public class Constants {
   public static final int RECEIVE_WAIT_TIMEOUT_SECONDS = 10;
   public static final String PROVIDER_ACCOUNT_SERVICE = "__provider_account_service__";
   public static final String ORG_ID_HEADER = "orgId";
-  public static final String EKS_PROVIDER_SERVICE_CATEGORY = "KUBERNETES";
+  public static final String KUBERNETES_PROVIDER_SERVICE_CATEGORY = "KUBERNETES";
   public static final String SERVICE_NAME = "service_name";
   public static final String STATUS = "status";
   public static final String ID = "id";

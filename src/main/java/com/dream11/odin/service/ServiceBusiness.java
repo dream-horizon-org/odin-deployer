@@ -1060,15 +1060,12 @@ public class ServiceBusiness {
   }
 
   private Flowable<ServiceResponse> undeployComponents(
-      String serviceName,
-      String environmentName,
-      UserDetails userDetails,
-      String executionId) {
+      String serviceName, String environmentName, UserDetails userDetails, String executionId) {
     return environmentDao
         .getEnvironmentWithServices(userDetails.getOrgId(), environmentName)
         .flatMapPublisher(
             environment ->
-            databasePollerService
+                databasePollerService
                     .pollDatabase(serviceName, environmentName, userDetails.getOrgId())
                     .flatMap(
                         serviceResponse ->

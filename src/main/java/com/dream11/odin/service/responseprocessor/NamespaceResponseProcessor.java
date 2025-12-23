@@ -17,13 +17,13 @@ public class NamespaceResponseProcessor implements ResponseProcessor {
 
   @Override
   public Completable process(ResponseMessage message) {
-    return environmentDao
+    // TODO update status for only target environment account
+    return this.environmentDao
         .updateExecutionStatus(message)
-        .andThen(environmentDao.updateEnvironmentAccountStatus(message))
-        .andThen(environmentDao.setEnvironmentInActiveForDeleteEnvironmentTask(message.getId()))
-        .andThen(lockDao.releaseEnvironmentExclusiveLock(message.getId()))
-        .andThen(environmentDao.getEnvironmentAccount(message.getId()))
-        .doOnError(err -> log.error("Error {}", err.getMessage(), err))
-        .ignoreElement();
+        .andThen(this.environmentDao.updateEnvironmentAccountStatus(message))
+        .andThen(
+            this.environmentDao.setEnvironmentInActiveForDeleteEnvironmentTask(
+                message.getId())) // TODO why is this needed
+        .andThen(this.lockDao.releaseEnvironmentExclusiveLock(message.getId()));
   }
 }

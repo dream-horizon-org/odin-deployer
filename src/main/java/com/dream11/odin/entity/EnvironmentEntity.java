@@ -4,9 +4,7 @@ import lombok.Builder;
 
 @Builder
 public record EnvironmentEntity(long id, long orgId, String name, String createdBy) {
-  public static final String COL_VERSION = "version";
-  public static final String COL_STATUS = "status";
-  public static final String COL_CREATED_BY = "created_by";
-
-  private static final String STATUS_DELIMITER = "_";
+  public EnvironmentEntity withId(long id) {
+    return new EnvironmentEntity(id, orgId, name, createdBy);
+  }
 }

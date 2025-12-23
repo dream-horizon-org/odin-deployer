@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS auth_provider
   PRIMARY KEY (id),
   UNIQUE (org_id)
 );
+
 CREATE TABLE IF NOT EXISTS action
 (
   id                        BIGINT      NOT NULL AUTO_INCREMENT,
@@ -20,6 +21,7 @@ CREATE TABLE IF NOT EXISTS action
   PRIMARY KEY (id),
   UNIQUE KEY actions_name_uindex (name)
 );
+
 CREATE TABLE IF NOT EXISTS environment
 (
   id                        BIGINT                                                          NOT NULL AUTO_INCREMENT,
@@ -33,6 +35,7 @@ CREATE TABLE IF NOT EXISTS environment
   PRIMARY KEY (id),
   INDEX (org_id, name)
 );
+
 CREATE TABLE IF NOT EXISTS environment_account
 (
   id                        BIGINT                                                          NOT NULL AUTO_INCREMENT,
@@ -47,7 +50,8 @@ CREATE TABLE IF NOT EXISTS environment_account
   updated_at                TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP NOT NULL,
   FOREIGN KEY (environment_id) REFERENCES environment (id),
   PRIMARY KEY (id)
- );
+);
+
 CREATE TABLE IF NOT EXISTS environment_service
 (
   id                        BIGINT                                                          NOT NULL AUTO_INCREMENT,
@@ -65,6 +69,7 @@ CREATE TABLE IF NOT EXISTS environment_service
   INDEX (environment_id, status),
   UNIQUE KEY unique_env_name (environment_id, name)
 );
+
 CREATE TABLE IF NOT EXISTS environment_service_component
 (
   id                        BIGINT                                                          NOT NULL AUTO_INCREMENT,
@@ -84,6 +89,7 @@ CREATE TABLE IF NOT EXISTS environment_service_component
   INDEX service_component_idx(environment_service_id, name),
   UNIQUE KEY (environment_service_id, name)
 );
+
 CREATE TABLE IF NOT EXISTS environment_lock
 (
   id            BIGINT NOT NULL AUTO_INCREMENT,
@@ -98,6 +104,7 @@ CREATE TABLE IF NOT EXISTS environment_lock
   UNIQUE KEY uniq_env_lock (environment_id),
   FOREIGN KEY (environment_id) REFERENCES environment (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
 CREATE TABLE IF NOT EXISTS environment_service_lock
 (
   id                     BIGINT NOT NULL AUTO_INCREMENT,
@@ -114,6 +121,7 @@ CREATE TABLE IF NOT EXISTS environment_service_lock
   FOREIGN KEY (environment_id) REFERENCES environment (id),
   FOREIGN KEY (environment_service_id) REFERENCES environment_service (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
 CREATE TABLE IF NOT EXISTS environment_service_component_lock
 (
   id                               BIGINT NOT NULL AUTO_INCREMENT,

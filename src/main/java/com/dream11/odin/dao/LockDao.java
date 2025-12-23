@@ -6,6 +6,7 @@ import static com.dream11.odin.error.OdinError.FAILED_TO_ACQUIRE_LOCK;
 import com.dream11.grpc.util.ExceptionUtil;
 import com.dream11.odin.client.MysqlClient;
 import io.reactivex.Completable;
+import io.reactivex.Single;
 import io.vertx.reactivex.sqlclient.SqlConnection;
 import io.vertx.reactivex.sqlclient.Tuple;
 import javax.inject.Inject;
@@ -18,10 +19,10 @@ public class LockDao {
 
   private final MysqlClient mysqlClient;
 
-  public Completable ensureEnvironmentLock(long envId, String user, SqlConnection connection) {
+  public Completable ensureEnvironmentLock(SqlConnection connection, long envId, String userId) {
     return connection
         .preparedQuery(CREATE_ENVIRONMENT_LOCK_IF_ABSENT)
-        .rxExecute(Tuple.of(envId, user, user))
+        .rxExecute(Tuple.of(envId, userId, userId))
         .ignoreElement();
   }
 
@@ -58,16 +59,11 @@ public class LockDao {
         .ignoreElement();
   }
 
-  public Completable acquireEnvironmentExclusiveLock(long envId, SqlConnection connection) {
+  public Single<Boolean> acquireEnvironmentExclusiveLock(SqlConnection connection, long envId) {
     return connection
         .preparedQuery(ACQUIRE_ENVIRONMENT_EXCLUSIVE)
         .rxExecute(Tuple.of(envId))
-        .flatMapCompletable(
-            res ->
-                res.rowCount() == 1
-                    ? Completable.complete()
-                    : Completable.error(
-                        ExceptionUtil.getException(FAILED_TO_ACQUIRE_LOCK, "environment")));
+        .map(res -> res.rowCount() == 1);
   }
 
   public Completable releaseEnvironmentExclusiveLock(long envId) {

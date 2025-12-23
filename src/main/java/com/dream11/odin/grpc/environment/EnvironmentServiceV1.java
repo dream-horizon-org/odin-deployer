@@ -33,9 +33,8 @@ public class EnvironmentServiceV1 extends RxEnvironmentServiceGrpc.EnvironmentSe
                     userDetails.getOrgId(),
                     Boolean.valueOf(req.getParamsMap().get(DISPLAY_ALL_PARAM)),
                     req.getParamsMap().get(ACCOUNT_PARAM)))
-        .onErrorResumeNext(err -> Single.error(ExceptionUtil.parseThrowable(err)))
-        .doOnError(
-            err -> log.error(String.format(Constants.ERROR_MESSAGE_FORMAT, err.getMessage()), err));
+        .doOnError(err -> log.error("Error while listing environment", err))
+        .onErrorResumeNext(err -> Single.error(ExceptionUtil.parseThrowable(err)));
   }
 
   @Override
@@ -47,9 +46,8 @@ public class EnvironmentServiceV1 extends RxEnvironmentServiceGrpc.EnvironmentSe
             req ->
                 environmentBusiness.describeEnvironment(
                     userDetails.getOrgId(), req.getEnvName(), req.getParamsMap()))
-        .onErrorResumeNext(err -> Single.error(ExceptionUtil.parseThrowable(err)))
-        .doOnError(
-            err -> log.error(String.format(Constants.ERROR_MESSAGE_FORMAT, err.getMessage()), err));
+        .doOnError(err -> log.error("Error while describing environment", err))
+        .onErrorResumeNext(err -> Single.error(ExceptionUtil.parseThrowable(err)));
   }
 
   @Override
