@@ -3,6 +3,7 @@ package com.dream11.odin.entity;
 import com.dream11.odin.constant.Action;
 import com.dream11.odin.constant.TaskStatus;
 import io.vertx.core.json.JsonObject;
+import java.time.LocalDateTime;
 import lombok.Data;
 import lombok.experimental.SuperBuilder;
 
@@ -16,6 +17,8 @@ public class ComponentEntity {
   JsonObject config;
   String createdBy;
   String updatedBy;
+  LocalDateTime createdAt;
+  LocalDateTime updatedAt;
   JsonObject accountData;
 
   public ComponentEntity updateAction(Action action) {

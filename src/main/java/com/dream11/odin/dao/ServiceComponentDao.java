@@ -1,5 +1,23 @@
 package com.dream11.odin.dao;
 
+import static com.dream11.odin.constant.Constants.COL_ACCOUNT_DATA;
+import static com.dream11.odin.constant.Constants.COL_COMPONENT_ACTION;
+import static com.dream11.odin.constant.Constants.COL_COMPONENT_CONFIG;
+import static com.dream11.odin.constant.Constants.COL_COMPONENT_CREATED_AT;
+import static com.dream11.odin.constant.Constants.COL_COMPONENT_CREATED_BY;
+import static com.dream11.odin.constant.Constants.COL_COMPONENT_NAME;
+import static com.dream11.odin.constant.Constants.COL_COMPONENT_STATUS;
+import static com.dream11.odin.constant.Constants.COL_COMPONENT_UPDATED_AT;
+import static com.dream11.odin.constant.Constants.COL_COMPONENT_UPDATED_BY;
+import static com.dream11.odin.constant.Constants.COL_ENVIRONMENT_ID;
+import static com.dream11.odin.constant.Constants.COL_SERVICE_ACTION;
+import static com.dream11.odin.constant.Constants.COL_SERVICE_CONFIG;
+import static com.dream11.odin.constant.Constants.COL_SERVICE_CREATED_AT;
+import static com.dream11.odin.constant.Constants.COL_SERVICE_CREATED_BY;
+import static com.dream11.odin.constant.Constants.COL_SERVICE_NAME;
+import static com.dream11.odin.constant.Constants.COL_SERVICE_STATUS;
+import static com.dream11.odin.constant.Constants.COL_SERVICE_UPDATED_AT;
+import static com.dream11.odin.constant.Constants.COL_SERVICE_UPDATED_BY;
 import static com.dream11.odin.dao.query.MysqlQuery.*;
 import static com.dream11.odin.error.OdinError.INTERNAL_SERVER_ERROR;
 import static com.dream11.odin.error.OdinError.SERVICE_DOES_NOT_EXIST_IN_ENV;
@@ -11,6 +29,7 @@ import com.dream11.odin.constant.TaskStatus;
 import com.dream11.odin.entity.ComponentEntity;
 import com.dream11.odin.entity.EnvironmentServiceEntity;
 import com.dream11.odin.entity.EnvironmentServiceEntityWithComponents;
+import com.dream11.odin.error.OdinError;
 import com.google.inject.Inject;
 import io.reactivex.Completable;
 import io.reactivex.Maybe;
@@ -30,6 +49,35 @@ import lombok.extern.slf4j.Slf4j;
 public class ServiceComponentDao {
   final MysqlClient mysqlClient;
 
+  public Single<EnvironmentServiceEntityWithComponents> getEnvironmentServiceWithComponents(
+      long envId, String serviceName) {
+    return this.mysqlClient
+        .getSlaveClient()
+        .preparedQuery(GET_ENVIRONMENT_SERVICE_COMPONENTS + EOL)
+        .rxExecute(Tuple.of(envId, serviceName))
+        .filter(rowSet -> rowSet.size() > 0)
+        .switchIfEmpty(
+            Single.error(
+                ExceptionUtil.getException(
+                    OdinError.SERVICE_DOES_NOT_EXIST_IN_ENV, serviceName, envId)))
+        .map(this::buildEnvironmentServiceEntityWithComponents);
+  }
+
+  public Single<EnvironmentServiceEntityWithComponents> getEnvironmentServiceWithComponent(
+      long envId, String serviceName, String componentName) {
+    return this.mysqlClient
+        .getSlaveClient()
+        .preparedQuery(GET_ENVIRONMENT_SERVICE_COMPONENT)
+        .rxExecute(Tuple.of(envId, serviceName, componentName))
+        .filter(rowSet -> rowSet.size() > 0)
+        .switchIfEmpty(
+            Single.error(
+                ExceptionUtil.getException(
+                    OdinError.COMPONENT_DOES_NOT_EXIST_IN_SERVICE, componentName, serviceName)))
+        .map(this::buildEnvironmentServiceEntityWithComponents);
+  }
+
+  // TODO AKSHAY Remove this and use getEnvironmentServiceWithComponents instead
   public Maybe<EnvironmentServiceEntityWithComponents> getServiceComponentStateInEnv(
       long orgId, String envName, String serviceName) {
     return mysqlClient
@@ -37,7 +85,7 @@ public class ServiceComponentDao {
         .preparedQuery(GET_ENV_SERVICE_COMPONENT)
         .rxExecute(Tuple.of(orgId, envName, serviceName))
         .filter(rowSet -> rowSet.size() > 0)
-        .map(this::mapToEnvironmentServiceComponentEntity);
+        .map(this::buildEnvironmentServiceEntityWithComponents);
   }
 
   public Single<Long> upsertEnvironmentService(
@@ -124,36 +172,41 @@ public class ServiceComponentDao {
         .map(rowSet -> rowSet.iterator().next().getLong("id"));
   }
 
-  private EnvironmentServiceEntityWithComponents mapToEnvironmentServiceComponentEntity(
+  private EnvironmentServiceEntityWithComponents buildEnvironmentServiceEntityWithComponents(
       RowSet<Row> rowSet) {
-    if (!rowSet.iterator().hasNext()) {
-      throw ExceptionUtil.getException(INTERNAL_SERVER_ERROR);
-    }
+    List<ComponentEntity> components =
+        StreamSupport.stream(rowSet::spliterator, Spliterator.ORDERED, false)
+            .filter(row -> row.getString(COL_COMPONENT_NAME) != null)
+            .<ComponentEntity>map(
+                row ->
+                    ComponentEntity.builder()
+                        .name(row.getString(COL_COMPONENT_NAME))
+                        .action(Action.valueOf(row.getString(COL_COMPONENT_ACTION)))
+                        .status(TaskStatus.valueOf(row.getString(COL_COMPONENT_STATUS)))
+                        .config(row.getJsonObject(COL_COMPONENT_CONFIG))
+                        .accountData(row.getJsonObject(COL_ACCOUNT_DATA))
+                        .createdBy(row.getString(COL_COMPONENT_CREATED_BY))
+                        .updatedBy(row.getString(COL_COMPONENT_UPDATED_BY))
+                        .createdAt(row.getLocalDateTime(COL_COMPONENT_CREATED_AT))
+                        .updatedAt(row.getLocalDateTime(COL_COMPONENT_UPDATED_AT))
+                        .build())
+            .toList();
 
     Row firstRow = rowSet.iterator().next();
-
     return EnvironmentServiceEntityWithComponents.builder()
         .environmentServiceEntity(
             EnvironmentServiceEntity.builder()
-                .environmentName(firstRow.getString("environment_name"))
-                .serviceName(firstRow.getString("service_name"))
-                .serviceAction(Action.valueOf(firstRow.getString("service_action")))
-                .serviceStatus(TaskStatus.valueOf(firstRow.getString("service_status")))
-                .serviceConfig(firstRow.getJsonObject("service_config"))
-                .createdBy(firstRow.getString("created_by"))
-                .updatedBy(firstRow.getString("updated_by"))
+                .environmentId(firstRow.getLong(COL_ENVIRONMENT_ID))
+                .serviceName(firstRow.getString(COL_SERVICE_NAME))
+                .serviceAction(Action.valueOf(firstRow.getString(COL_SERVICE_ACTION)))
+                .serviceStatus(TaskStatus.valueOf(firstRow.getString(COL_SERVICE_STATUS)))
+                .serviceConfig(firstRow.getJsonObject(COL_SERVICE_CONFIG))
+                .createdBy(firstRow.getString(COL_SERVICE_CREATED_BY))
+                .updatedBy(firstRow.getString(COL_SERVICE_UPDATED_BY))
+                .createdAt(firstRow.getLocalDateTime(COL_SERVICE_CREATED_AT))
+                .updatedAt(firstRow.getLocalDateTime(COL_SERVICE_UPDATED_AT))
                 .build())
-        .components(
-            StreamSupport.stream(rowSet::spliterator, Spliterator.ORDERED, false)
-                .<ComponentEntity>map(
-                    r ->
-                        ComponentEntity.builder()
-                            .config(r.getJsonObject("component_config"))
-                            .name(r.getString("component_name"))
-                            .action(Action.valueOf(r.getString("component_action")))
-                            .status(TaskStatus.valueOf(r.getString("component_status")))
-                            .build())
-                .toList())
+        .components(components)
         .build();
   }
 }

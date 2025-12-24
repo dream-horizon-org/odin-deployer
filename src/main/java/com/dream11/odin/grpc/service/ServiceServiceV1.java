@@ -72,20 +72,23 @@ public class ServiceServiceV1 extends RxServiceServiceGrpc.ServiceServiceImplBas
   @Override
   public Single<OperateComponentDiffResponse> operateComponentDiff(
       Single<OperateComponentDiffRequest> request) {
-    return request.flatMap(
-        req ->
-            serviceBusiness
-                .getComponentChanges(
-                    req.getComponentName(),
-                    req.getServiceName(),
-                    req.getEnvName(),
-                    req.getOperationName(),
-                    req.getConfig())
-                .onErrorResumeNext(
-                    err -> {
-                      log.error(
-                          "Error occurred during comparing operation : {}", err.getMessage(), err);
-                      return Single.error(ExceptionUtil.parseThrowable(err));
-                    }));
+    // TODO Implement this
+    return Single.just(OperateComponentDiffResponse.newBuilder().build());
+    //    return request.flatMap(
+    //        req ->
+    //            serviceBusiness
+    //                .getComponentChanges(
+    //                    req.getComponentName(),
+    //                    req.getServiceName(),
+    //                    req.getEnvName(),
+    //                    req.getOperationName(),
+    //                    req.getConfig())
+    //                .onErrorResumeNext(
+    //                    err -> {
+    //                      log.error(
+    //                          "Error occurred during comparing operation : {}", err.getMessage(),
+    // err);
+    //                      return Single.error(ExceptionUtil.parseThrowable(err));
+    //                    }));
   }
 }

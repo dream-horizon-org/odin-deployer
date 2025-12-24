@@ -8,9 +8,125 @@ public class MysqlQuery {
 
   public static final String BY_ENVIRONMENT_NAME = " AND e.name = ?";
   public static final String BY_USER = " AND e.created_by = ?";
+  public static final String BY_ENVIRONMENT_ID = "e.id=  ?";
   public static final String BY_ACCOUNT = " AND ea.account_name = ?";
-  public static final String REMOVE_DELETED_ENVIRONMENTS =
-      " AND NOT ( a.name = 'DELETE_ENVIRONMENT' AND ea.status = " + "'SUCCESSFUL' ) ";
+  public static final String BY_ORG_ID_AND_ACTIVE = "e.org_id = ? AND e.is_active = 1";
+  public static final String EOL = ";";
+
+  public static final String GET_ENVIRONMENTS_WITH_ACCOUNTS_BASE =
+      """
+    SELECT
+      e.org_id,
+      e.name,
+      e.created_by,
+      e.created_at,
+      e.updated_at,
+      e.updated_by,
+      ea.id,
+      ea.environment_id,
+      ea.status,
+      ea.account_name,
+      ea.account_data,
+      ea.action AS action
+    FROM environment AS e JOIN environment_account AS ea ON e.id = ea.environment_id
+    WHERE
+  """;
+
+  public static final UnaryOperator<String> GET_ACTIVE_ENVIRONMENT_WITH_ACCOUNTS_FOR_ORG =
+      query -> GET_ENVIRONMENTS_WITH_ACCOUNTS_BASE + BY_ORG_ID_AND_ACTIVE + query + EOL;
+
+  public static final UnaryOperator<String> GET_ENVIRONMENT_WITH_ACCOUNTS =
+      query -> GET_ENVIRONMENTS_WITH_ACCOUNTS_BASE + query + EOL;
+
+  public static final String CREATE_ENVIRONMENT =
+      """
+    INSERT INTO environment(created_by, org_id, name, updated_by) VALUES (?,?,?,?);
+  """;
+
+  public static final String CREATE_ENVIRONMENT_ACCOUNT =
+      """
+    INSERT INTO environment_account(environment_id, action, status, created_by, account_name, account_data, updated_by)
+    VALUES (?,?,?,?,?,?,?);
+  """;
+
+  public static final String UPDATE_EXECUTION_TASK =
+      """
+      UPDATE execution_tasksSET status = ?, response = CAST(? AS JSON)
+      WHERE execution_id = ?;
+  """;
+
+  public static final String UPDATE_ENVIRONMENT_ACTIVE_STATUS =
+      """
+  UPDATE environment SET is_active = 0
+  WHERE id = (SELECT environment_id FROM environment_account WHERE environment_account.id = ? AND action = ? AND environment_account.status = ?);
+  """;
+
+  public static final String UPDATE_ENVIRONMENT_ACCOUNTS =
+      """
+    UPDATE environment_account SET status=?, action=? WHERE environment_id=?;
+   """;
+
+  public static final String UPDATE_ENVIRONMENT_ACCOUNT_STATUS =
+      """
+    UPDATE environment_account SET status = ? WHERE id = ?
+  """;
+
+  public static final String GET_ENVIRONMENT_SERVICES =
+      """
+    SELECT
+      es.id AS service_id,
+      es.environment_id,
+      es.name AS service_name,
+      es.action AS service_action,
+      es.status AS service_status,
+      es.created_by,
+      es.updated_by,
+      es.created_at,
+      es.updated_at,
+      es.config AS service_config
+      FROM environment_service AS es
+      WHERE es.environment_id=?
+      AND NOT (es.action = 'UNDEPLOY' AND es.status = 'SUCCESSFUL');
+  """;
+
+  public static final String GET_ENVIRONMENT_SERVICE_COMPONENTS =
+      """
+    SELECT
+      es.environment_id,
+      es.name AS service_name,
+      es.action AS service_action,
+      es.status AS service_status,
+      es.created_by AS service_created_by,
+      es.updated_by AS service_updated_by,
+      es.created_at AS service_created_at,
+      es.updated_at AS service_updated_at,
+      es.config AS service_config,
+      esc.name AS component_name,
+      esc.action AS component_action,
+      esc.status AS component_status,
+      esc.config AS component_config,
+      esc.account_data,
+      esc.created_by AS component_created_by,
+      esc.updated_by AS component_updated_by,
+      esc.created_at AS component_created_at,
+      esc.updated_at AS component_updated_at
+    FROM environment_service AS es LEFT JOIN environment_service_component AS esc ON es.id = esc.environment_service_id
+    WHERE es.environment_id=? AND es.name=? AND NOT (es.action = 'UNDEPLOY' AND es.status = 'SUCCESSFUL')
+    """; // TODO AKSHAY see if we need to filter undeploy successful components
+
+  public static final String GET_ENVIRONMENT_SERVICE_COMPONENT =
+      GET_ENVIRONMENT_SERVICE_COMPONENTS + " AND esc.name=?;";
+
+  public static final String GET_ENV_SERVICE_COMPONENT =
+      "SELECT e.name AS environment_name, e.id AS environment_id, s.name AS service_name, "
+          + "s.action AS service_action, s.status AS service_status, s.created_by AS created_by,"
+          + " s.updated_by AS updated_by, c.name AS component_name,"
+          + " c.action AS component_action, c.status AS component_status "
+          + "FROM environment e JOIN environment_service s ON e.id = s.environment_id "
+          + "JOIN environment_service_component c ON s.id = c.environment_service_id "
+          + "WHERE e.org_id = ? AND e.name = ? AND s.name = ?; ";
+
+  // TODO AKSHAY Delete below this
   private static final String SELECT_SERVICE_TASK_FIELDS =
       "SELECT service_task.id AS id, env_id, service_task.name, service_version, "
           + "config, service_config_hash, action.name AS actions, status, service_task.version, "
@@ -22,90 +138,11 @@ public class MysqlQuery {
           + "(service_task_id, component_name, action_id, status, config, config_hash, version, service_account_snapshot, created_by, "
           + "updated_by) "
           + "VALUES (?,?,(SELECT action.id AS action_id FROM action WHERE action.name = ?),?,?,?,?,?,?,?);";
-  public static final String CREATE_ENVIRONMENT =
-      "INSERT INTO environment(created_by, org_id, name, updated_by) VALUES (?,?,?,?);";
-  public static final String CREATE_ENVIRONMENT_ACCOUNT =
-      "INSERT INTO environment_account(environment_id, action, status, created_by, account_name, "
-          + "account_data, updated_by) VALUES (?,?,?,?,?,?,?);";
-
-  public static final String UPDATE_ENVIRONMENT_ACCOUNT =
-      "UPDATE environment_account "
-          + "SET status = ?, "
-          + "action = ?, "
-          + "updated_by = ? "
-          + "WHERE environment_id = ? AND account_name = ?;";
 
   public static final String CREATE_SERVICE_TASK =
       "INSERT INTO service_task "
           + "(action_id, config, service_config_hash, env_id, name, service_version, status, version, trace_id, created_by, "
           + "updated_by) VALUES (( SELECT action.id AS action_id FROM action WHERE action.name = ?),?,?,?,?,?,?,?,?,?,?);";
-  public static final String EOL = ";";
-  public static final String ALL = EOL;
-
-  public static final String GET_ENVIRONMENT_ACCOUNT =
-      "SELECT id, environment_id, action, status, created_by, account_name, account_data "
-          + "FROM environment_account WHERE id = ?"
-          + EOL;
-
-  public static final String WITH_SERVICE_TASK_IDS = "WITH service_task_ids AS ";
-  public static final String GET_LAST_COMPONENT_TASKS_FOR_SERVICE_IN_ENV =
-      WITH_SERVICE_TASK_IDS
-          + "("
-          + "    SELECT st.id FROM service_task AS st"
-          + "    JOIN environment AS env ON st.env_id = env.id"
-          + "    WHERE env.id = ? AND st.name = ?"
-          + " ),"
-          + " ranked_component_task AS ("
-          + "    SELECT ct.component_name, ct.config, ct.created_at, ct.updated_at , ct.action_id AS component_action_id, ct.status AS "
-          + "component_status,"
-          + "    st.name AS service_name, st.service_version AS service_version, st.action_id AS service_action_id, st.status AS service_status,"
-          + "    ROW_NUMBER() OVER (PARTITION BY ct.component_name ORDER BY ct.id DESC) AS rn"
-          + "    FROM component_task AS ct JOIN service_task AS st ON ct.service_task_id = st.id"
-          + "    WHERE st.id IN (SELECT id FROM service_task_ids)"
-          + ") "
-          + "SELECT ranked_component_task.component_name, ranked_component_task.created_at,ranked_component_task.updated_at,"
-          + "ranked_component_task.config, ranked_component_task.component_action_id, "
-          + "ranked_component_task.component_status, ranked_component_task.service_name, ranked_component_task.service_version, "
-          + "ranked_component_task.service_action_id, ranked_component_task.service_status, action.name AS action_name, rn "
-          + "FROM ranked_component_task JOIN action ON ranked_component_task.component_action_id = action.id WHERE rn = 1;";
-  public static final String GET_COMPONENT_TASKS_AFTER_LAST_UNDEPLOY_FOR_SERVICE_IN_ENV =
-      """
-(
-    SELECT st.id FROM service_task AS st
-    JOIN environment AS env ON st.env_id = env.id
-    WHERE env.id = ? AND st.name = ?
-),
-min_undeploy_id AS (
-    SELECT COALESCE(MAX(ct.id), 0) AS ud_id
-    FROM component_task AS ct
-    JOIN service_task AS st ON ct.service_task_id = st.id
-    JOIN action ON ct.action_id = action.id
-    WHERE st.id IN (SELECT id FROM service_task_ids)
-    AND action.name = 'UNDEPLOY' AND ct.component_name = ?
-    AND ct.status = 'SUCCESSFUL'
-)
-SELECT ct.id, ct.component_name AS component_name, ct.config, ct.action_id AS component_action_id, ct.status AS component_status,
-action.name as action_name, ct.created_at as created_at, ct.updated_at as updated_at,
-st.name AS service_name, st.service_version AS service_version, st.action_id AS service_action_id, st.status AS service_status
-FROM component_task AS ct JOIN service_task AS st ON ct.service_task_id = st.id JOIN action ON ct.action_id = action.id
-WHERE st.id IN (SELECT id FROM service_task_ids) AND ct.component_name = ? %s  AND ct.id > (SELECT ud_id FROM min_undeploy_id)
-ORDER BY ct.id;
-""";
-
-  public static final UnaryOperator<String> GET_COMPONENT_TASKS_FOR_SERVICE_IN_ENV =
-      inputQuery -> WITH_SERVICE_TASK_IDS + inputQuery;
-
-  public static final String GET_ENVIRONMENT_SERVICES =
-      "SELECT es.id AS service_id, "
-          + "es.name AS service_name, "
-          + "es.action, "
-          + "es.environment_id AS env_id, "
-          + "es.status AS service_status, "
-          + "es.created_at, "
-          + "es.updated_at "
-          + "FROM environment_service AS es "
-          + "WHERE es.environment_id = ? "
-          + "AND NOT (es.action = 'UNDEPLOY' AND es.status = 'SUCCESSFUL');";
 
   public static final String GET_SERVICE_COMPONENT_TASK_STATUS =
       """
@@ -143,15 +180,6 @@ ORDER BY ct.id;
           + "execution_tasks.org_id, execution_tasks.status, execution_tasks.entity,"
           + " execution_tasks.execution_id, execution_tasks.response, "
           + "execution_tasks.payload from execution_tasks where execution_id=? and action.name=?;";
-
-  public static final String GET_ENV_SERVICE_COMPONENT =
-      "SELECT e.name AS environment_name, s.name AS service_name, "
-          + "s.action AS service_action, s.status AS service_status, s.created_by AS created_by,"
-          + " s.updated_by AS updated_by, c.name AS component_name,"
-          + " c.action AS component_action, c.status AS component_status "
-          + "FROM environment e JOIN environment_service s ON e.id = s.environment_id "
-          + "JOIN environment_service_component c ON s.id = c.environment_service_id "
-          + "WHERE e.org_id = ? AND e.name = ? AND s.name = ?; ";
 
   public static final String UPSERT_ENVIRONMENT_SERVICE =
       "INSERT INTO environment_service ( "
@@ -224,13 +252,7 @@ INSERT INTO environment_service_component
           + ".service_account_snapshot "
           + "FROM component_task AS ct "
           + "LEFT JOIN action ON action_id=action.id WHERE service_task_id = ?;";
-  public static final String IS_ACTIVE_FILTER = " AND e.is_active = true";
-  public static final String GET_FAILED_OR_SUCCESS_SERVICE_COMPONENT_TASKS =
-      "SELECT ct.id, ct.action_id, ct.component_name, ct.status, ct.config, ct.config_hash, ct.version, ct.created_by, ct.updated_by, "
-          + "action.name as "
-          + "action_name, action.id as action_id, ct.service_account_snapshot FROM component_task AS ct LEFT JOIN action ON "
-          + "action_id=action.id WHERE "
-          + "service_task_id = ? and status in ('SUCCESSFUL', 'FAILED') ORDER BY ct.id ASC;";
+
   public static final String UPDATE_COMPONENT_TASK_STATUSES =
       /***
        * TODO: Fix this
@@ -251,86 +273,9 @@ INSERT INTO environment_service_component
                       and component_name = ?
                       and action_id = (SELECT action.id AS action_id FROM action WHERE action.name = ?);
                     """;
-  public static final String UPDATE_ENVIRONMENT =
-      "UPDATE environment SET created_by = ?, version = version+1, org_id = ?, "
-          + " name = ? WHERE org_id = ? AND id = ? AND version = ?;";
-
-  public static final String UPDATE_ENVIRONMENT_ACTIVE_STATUS =
-      "UPDATE environment SET is_active = 0 WHERE id = (SELECT environment_id FROM environment_account "
-          + "WHERE environment_account.id = ?  AND  action = ? AND environment_account.status = ?)"
-          + EOL;
-
-  public static final String UPDATE_ENVIRONMENT_ACCOUNT_STATUS_WITH_RESPONSE =
-      "UPDATE environment_account SET status = ?, response = ? WHERE id = ?" + EOL;
 
   public static final String UPDATE_SERVICE_TASK_STATUS =
       "UPDATE service_task SET status = ? WHERE id = ?;";
-  public static final String ENVIRONMENT_BY_ID =
-      "SELECT "
-          + "e.id AS environment_id, "
-          + "e.org_id, "
-          + "e.name, "
-          + "e.is_active,"
-          + "e.created_by, "
-          + "e.created_at, "
-          + "e.updated_by, "
-          + "e.updated_at, "
-          + "ea.id AS env_account_id, "
-          + "ea.account_name, "
-          + "ea.status AS status, "
-          + "ea.action AS action_name, "
-          + "ea.account_data, "
-          + "ea.created_by AS account_created_by, "
-          + "ea.created_at AS account_created_at, "
-          + "ea.updated_by AS account_updated_by, "
-          + "ea.updated_at AS account_updated_at "
-          + "FROM environment e "
-          + "JOIN environment_account ea ON e.id = ea.environment_id "
-          + "WHERE e.id = ?;";
-
-  public static final String ENVIRONMENTS_BY_ORG_WITH_ALL_FIELDS =
-      """
-        SELECT
-            e.id AS environment_id,
-            e.org_id,
-            e.name,
-            e.is_active,
-            e.created_by,
-            e.created_at,
-            e.updated_by,
-            e.updated_at,
-            ea.id AS env_account_id,
-            ea.account_name,
-            ea.status AS status,
-            ea.account_data,
-            ea.created_by AS account_created_by,
-            ea.created_at AS account_created_at,
-            ea.updated_by AS account_updated_by,
-            ea.updated_at AS account_updated_at,
-            ea.action AS action_name
-        FROM environment e
-        LEFT JOIN environment_account ea
-            ON e.id = ea.environment_id
-        WHERE e.org_id = ?
-        """;
-
-  public static final UnaryOperator<String> GET_ENVIRONMENTS_WITH_ALL_FIELDS =
-      inputQuery -> ENVIRONMENTS_BY_ORG_WITH_ALL_FIELDS + inputQuery;
-
-  public static final String GET_ENVIRONMENT_ACCOUNTS =
-      "SELECT "
-          + "ea.id, ea.action, ea.environment_id, ea.status, "
-          + "env.org_id, env.name, env.created_by, env.created_at, env.updated_at, env.updated_by, "
-          + "ea.account_name AS account_name, "
-          + "ea.account_data, "
-          + "ea.action AS action_name "
-          + "FROM environment AS env "
-          + "JOIN environment_account AS ea ON env.id = ea.environment_id "
-          + "WHERE env.name = ? "
-          + "AND env.org_id = ? "
-          + "AND env.is_active = 1";
-
-  public static final String GET_ALL_ENVIRONMENT_ACCOUNTS = GET_ENVIRONMENT_ACCOUNTS + EOL;
 
   public static final String CREATE_SERVICE_VALIDATE_TASK =
       "INSERT INTO service_validate_task "
@@ -532,12 +477,6 @@ INSERT INTO environment_service_component
       "INSERT INTO execution_tasks (action, org_id, response, status, entity, execution_id, payload, created_by, updated_by) "
           + "VALUES (?, ?, JSON_OBJECT(), ?, ?, ?, CAST(? AS JSON), ?, ?)";
 
-  public static final String UPDATE_EXECUTION_TASK =
-      "UPDATE execution_tasks "
-          + "SET status = ?, "
-          + "response = CAST(? AS JSON) "
-          + "WHERE execution_id = ?;";
-
   public static final String GET_AUTH_PROVIDER_FOR_ORG =
       "SELECT type, provider_details from auth_provider where org_id=?;";
   // Todo - remove oidc specific fields
@@ -549,10 +488,4 @@ INSERT INTO environment_service_component
           + "'token_url', provider_details->>'$.token_url', "
           + "'scope', provider_details->>'$.scope'"
           + ") as provider_details from auth_provider where org_id=?;";
-
-  public static final String GET_ENV_ACCOUNT_ID_FROM_ENV_ID_AND_NAME =
-      "SELECT id FROM environment_account WHERE environment_id = ? AND account_name = ?;";
-
-  public static final String UPDATE_ENVIRONMENT_ACCOUNT_STATUS =
-      "UPDATE environment_account " + "SET status = ? " + "WHERE id = ?";
 }

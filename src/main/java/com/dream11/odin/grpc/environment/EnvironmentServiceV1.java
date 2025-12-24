@@ -86,15 +86,18 @@ public class EnvironmentServiceV1 extends RxEnvironmentServiceGrpc.EnvironmentSe
   public Flowable<StatusEnvironmentResponse> statusEnvironment(
       Single<StatusEnvironmentRequest> request) {
     final UserDetails userDetails = ApplicationContext.getUserDetails();
-    return request
-        .flatMapPublisher(
-            req ->
-                environmentBusiness.getEnvironmentStatus(
-                    userDetails.getOrgId(), req.getEnvName(), req.getServiceName(), userDetails))
-        .onErrorResumeNext(
-            err -> {
-              log.error(String.format(Constants.ERROR_MESSAGE_FORMAT, err.getMessage()), err);
-              return Flowable.error(ExceptionUtil.parseThrowable(err));
-            });
+    // TODO
+    return Flowable.just(StatusEnvironmentResponse.newBuilder().build());
+    //    return request
+    //        .flatMapPublisher(
+    //            req ->
+    //                environmentBusiness.getEnvironmentStatus(
+    //                    userDetails.getOrgId(), req.getEnvName(), req.getServiceName(),
+    // userDetails))
+    //        .onErrorResumeNext(
+    //            err -> {
+    //              log.error(String.format(Constants.ERROR_MESSAGE_FORMAT, err.getMessage()), err);
+    //              return Flowable.error(ExceptionUtil.parseThrowable(err));
+    //            });
   }
 }

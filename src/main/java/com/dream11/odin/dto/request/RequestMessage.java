@@ -2,15 +2,13 @@ package com.dream11.odin.dto.request;
 
 import com.dream11.odin.constant.Action;
 import com.dream11.odin.dto.constants.RequestMessageType;
-import com.dream11.odin.grpc.provideraccount.v1.GetProviderAccountResponse;
-import com.dream11.odin.util.JsonUtil;
 import io.vertx.core.json.JsonObject;
 import lombok.RequiredArgsConstructor;
 
 @RequiredArgsConstructor
 public class RequestMessage {
   final String environmentName;
-  final GetProviderAccountResponse providerAccountResponse;
+  final JsonObject accountData;
   final Action environmentAction;
   final long taskId;
   final RequestMessageType requestMessageType;
@@ -22,7 +20,7 @@ public class RequestMessage {
         new JsonObject()
             .put("name", environmentName)
             .put("action", environmentAction)
-            .put("account", JsonUtil.getJsonFromProto(providerAccountResponse.getAccount()))
+            .put("account", accountData)
             .put("orgId", orgId);
     return new JsonObject()
         .put("id", taskId)

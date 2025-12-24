@@ -47,10 +47,8 @@ import com.dream11.odin.error.OdinError;
 import com.dream11.odin.error.OdinRestError;
 import com.dream11.odin.grpc.environment.DeployedServiceStatus;
 import com.dream11.odin.grpc.environment.StatusEnvComponentStatus;
-import com.dream11.odin.grpc.environment.StatusEnvironmentResponse;
 import com.dream11.odin.grpc.service.DeployServiceRequest;
 import com.dream11.odin.grpc.service.DeployServiceResponse;
-import com.dream11.odin.grpc.service.OperateComponentDiffResponse;
 import com.dream11.odin.grpc.service.OperateServiceRequest;
 import com.dream11.odin.grpc.service.OperateServiceResponse;
 import com.dream11.odin.grpc.service.ServiceResponse;
@@ -97,7 +95,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -261,7 +258,7 @@ public class ServiceBusiness {
             orgId,
             env.getId(),
             buildEnvironmentServiceEntityWithComponents(
-                env.getName(), userDetails, Action.VALIDATE, serviceData, componentData),
+                env.getId(), userDetails, Action.VALIDATE, serviceData, componentData),
             executionId,
             componentData,
             Action.VALIDATE,
@@ -274,7 +271,7 @@ public class ServiceBusiness {
             orgId,
             env.getId(),
             buildEnvironmentServiceEntityWithComponents(
-                env.getName(), userDetails, Action.DEPLOY, serviceData, componentData),
+                env.getId(), userDetails, Action.DEPLOY, serviceData, componentData),
             executionId,
             componentData,
             Action.DEPLOY,
@@ -307,7 +304,7 @@ public class ServiceBusiness {
   }
 
   private EnvironmentServiceEntityWithComponents buildEnvironmentServiceEntityWithComponents(
-      String envName,
+      long envId,
       UserDetails userDetails,
       Action action,
       ServiceData serviceData,
@@ -315,7 +312,7 @@ public class ServiceBusiness {
     return EnvironmentServiceEntityWithComponents.builder()
         .environmentServiceEntity(
             EnvironmentServiceEntity.builder()
-                .environmentName(envName)
+                .environmentId(envId)
                 .serviceName(serviceData.getServiceDefinition().getName())
                 .serviceAction(action)
                 .serviceStatus(TaskStatus.IN_PROGRESS)
@@ -1061,10 +1058,10 @@ public class ServiceBusiness {
 
   private Flowable<ServiceResponse> undeployComponents(
       String serviceName, String environmentName, UserDetails userDetails, String executionId) {
-    return environmentDao
-        .getEnvironmentWithServices(userDetails.getOrgId(), environmentName)
+    return this.environmentDao
+        .getEnvironmentWithAccounts(userDetails.getOrgId(), environmentName)
         .flatMapPublisher(
-            environment ->
+            envWithAccounts ->
                 databasePollerService
                     .pollDatabase(serviceName, environmentName, userDetails.getOrgId())
                     .flatMap(
@@ -1084,7 +1081,7 @@ public class ServiceBusiness {
                                                   serviceName,
                                                   environmentName,
                                                   userDetails.getOrgId(),
-                                                  environment.getId(),
+                                                  envWithAccounts.getEnvironment().id(),
                                                   updatedEnvironmentServiceEntity,
                                                   executionId,
                                                   buildComponentDataMap(
@@ -1238,6 +1235,7 @@ public class ServiceBusiness {
         .toList();
   }
 
+  // TODO why this needs both envName and envID?
   public Flowable<List<UndeployServiceResponse>> undeployAllServicesInEnvWithoutValidations(
       String envName, Long envId, UserDetails userDetails) {
 
@@ -1272,47 +1270,47 @@ public class ServiceBusiness {
             });
   }
 
-  public Single<OperateComponentDiffResponse> getComponentChanges(
-      String componentName,
-      String serviceName,
-      String envName,
-      String operationName,
-      Struct config) {
-    final UserDetails userDetails = ApplicationContext.getUserDetails();
-
-    return environmentDao
-        .getEnvironmentServiceWithComponent(
-            userDetails.getOrgId(), envName, serviceName, componentName, true)
-        .flatMap(
-            env ->
-                Flowable.fromIterable(env.getServicesList())
-                    .filter(service -> service.getName().equals(serviceName))
-                    .firstOrError()
-                    .toFlowable()
-                    .flatMap(service -> Flowable.fromIterable(service.getComponentsList()))
-                    .filter(component -> component.getName().equals(componentName))
-                    .firstOrError()
-                    .map(
-                        component -> {
-                          OperateServiceRequest operateServiceRequest =
-                              OperateServiceRequest.newBuilder()
-                                  .setEnvName(envName)
-                                  .setServiceName(serviceName)
-                                  .setComponentName(componentName)
-                                  .setIsComponentOperation(true)
-                                  .setOperation(operationName)
-                                  .setConfig(config)
-                                  .build();
-
-                          Pair<Struct, Struct> diff =
-                              compareConfigs(
-                                  component.getConfig(), operateServiceRequest.getConfig());
-                          return OperateComponentDiffResponse.newBuilder()
-                              .setOldValues(diff.getLeft())
-                              .setNewValues(diff.getRight())
-                              .build();
-                        }));
-  }
+  //  public Single<OperateComponentDiffResponse> getComponentChanges(
+  //      String componentName,
+  //      String serviceName,
+  //      String envName,
+  //      String operationName,
+  //      Struct config) {
+  //    final UserDetails userDetails = ApplicationContext.getUserDetails();
+  //
+  //    return environmentDao
+  //        .getEnvironmentServiceWithComponent(
+  //            userDetails.getOrgId(), envName, serviceName, componentName, true)
+  //        .flatMap(
+  //            env ->
+  //                Flowable.fromIterable(env.getServicesList())
+  //                    .filter(service -> service.getName().equals(serviceName))
+  //                    .firstOrError()
+  //                    .toFlowable()
+  //                    .flatMap(service -> Flowable.fromIterable(service.getComponentsList()))
+  //                    .filter(component -> component.getName().equals(componentName))
+  //                    .firstOrError()
+  //                    .map(
+  //                        component -> {
+  //                          OperateServiceRequest operateServiceRequest =
+  //                              OperateServiceRequest.newBuilder()
+  //                                  .setEnvName(envName)
+  //                                  .setServiceName(serviceName)
+  //                                  .setComponentName(componentName)
+  //                                  .setIsComponentOperation(true)
+  //                                  .setOperation(operationName)
+  //                                  .setConfig(config)
+  //                                  .build();
+  //
+  //                          Pair<Struct, Struct> diff =
+  //                              compareConfigs(
+  //                                  component.getConfig(), operateServiceRequest.getConfig());
+  //                          return OperateComponentDiffResponse.newBuilder()
+  //                              .setOldValues(diff.getLeft())
+  //                              .setNewValues(diff.getRight())
+  //                              .build();
+  //                        }));
+  //  }
 
   private Pair<Struct, Struct> compareConfigs(Struct oldConfig, Struct newConfig) {
     Struct.Builder oldDiffBuilder = Struct.newBuilder();
@@ -1407,49 +1405,49 @@ public class ServiceBusiness {
     }
     return defaultStructBuilder.build();
   }
-
-  public Flowable<StatusEnvironmentResponse> getAllServiceStatus(
-      Environment environment, UserDetails userDetails, String serviceName) {
-    List<ServiceTask> filteredServiceTasks;
-    if (!Objects.isNull(serviceName) && !serviceName.isBlank()) {
-      filteredServiceTasks =
-          environment.getServicesList().stream()
-              .filter(serviceTask -> serviceName.equalsIgnoreCase(serviceTask.getName()))
-              .toList();
-    } else {
-      filteredServiceTasks = environment.getServicesList();
-    }
-    if (!filteredServiceTasks.isEmpty()) {
-      StatusEnvironmentResponse.Builder servicesStatus = StatusEnvironmentResponse.newBuilder();
-      servicesStatus.setEnvName(environment.getName()).setEnvStatus(environment.getStatus());
-
-      return Flowable.fromIterable(filteredServiceTasks)
-          .flatMap(
-              serviceTaskEntity ->
-                  getServiceStatus(environment, serviceTaskEntity, userDetails)
-                      .map(
-                          serviceComponentStatus ->
-                              StatusEnvironmentResponse.newBuilder()
-                                  .setEnvName(environment.getName())
-                                  .setEnvStatus(environment.getStatus())
-                                  .addServicesStatus(serviceComponentStatus)
-                                  .build()))
-          .doOnError(
-              throwable ->
-                  log.error(
-                      "Error while getting  status of services in environment: {}",
-                      environment.getName(),
-                      throwable));
-    } else if (serviceName != null && serviceName.isBlank()) {
-      return Flowable.just(
-          StatusEnvironmentResponse.newBuilder()
-              .setEnvName(environment.getName())
-              .setEnvStatus(environment.getStatus())
-              .build());
-    }
-    throw ExceptionUtil.getException(
-        OdinError.SERVICE_DOES_NOT_EXIST_IN_ENV, serviceName, environment.getName());
-  }
+  //
+  //  public Flowable<StatusEnvironmentResponse> getAllServiceStatus(
+  //      Environment environment, UserDetails userDetails, String serviceName) {
+  //    List<ServiceTask> filteredServiceTasks;
+  //    if (!Objects.isNull(serviceName) && !serviceName.isBlank()) {
+  //      filteredServiceTasks =
+  //          environment.getServicesList().stream()
+  //              .filter(serviceTask -> serviceName.equalsIgnoreCase(serviceTask.getName()))
+  //              .toList();
+  //    } else {
+  //      filteredServiceTasks = environment.getServicesList();
+  //    }
+  //    if (!filteredServiceTasks.isEmpty()) {
+  //      StatusEnvironmentResponse.Builder servicesStatus = StatusEnvironmentResponse.newBuilder();
+  //      servicesStatus.setEnvName(environment.getName()).setEnvStatus(environment.getStatus());
+  //
+  //      return Flowable.fromIterable(filteredServiceTasks)
+  //          .flatMap(
+  //              serviceTaskEntity ->
+  //                  getServiceStatus(environment, serviceTaskEntity, userDetails)
+  //                      .map(
+  //                          serviceComponentStatus ->
+  //                              StatusEnvironmentResponse.newBuilder()
+  //                                  .setEnvName(environment.getName())
+  //                                  .setEnvStatus(environment.getStatus())
+  //                                  .addServicesStatus(serviceComponentStatus)
+  //                                  .build()))
+  //          .doOnError(
+  //              throwable ->
+  //                  log.error(
+  //                      "Error while getting  status of services in environment: {}",
+  //                      environment.getName(),
+  //                      throwable));
+  //    } else if (serviceName != null && serviceName.isBlank()) {
+  //      return Flowable.just(
+  //          StatusEnvironmentResponse.newBuilder()
+  //              .setEnvName(environment.getName())
+  //              .setEnvStatus(environment.getStatus())
+  //              .build());
+  //    }
+  //    throw ExceptionUtil.getException(
+  //        OdinError.SERVICE_DOES_NOT_EXIST_IN_ENV, serviceName, environment.getName());
+  //  }
 
   public Flowable<DeployedServiceStatus> getServiceStatus(
       Environment environment, ServiceTask serviceTask, UserDetails userDetails) {

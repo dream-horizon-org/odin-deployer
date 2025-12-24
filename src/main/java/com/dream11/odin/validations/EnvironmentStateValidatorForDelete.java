@@ -31,7 +31,7 @@ public class EnvironmentStateValidatorForDelete extends Validator {
   @Override
   public Completable validate() {
     final UserDetails userDetails = ApplicationContext.getUserDetails();
-    return environmentDao
+    return this.environmentDao
         .getEnvironmentByNameAndIsActiveIfExists(userDetails.getOrgId(), environmentName)
         .flatMapCompletable(
             environment -> {

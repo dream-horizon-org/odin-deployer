@@ -52,37 +52,6 @@ class EnvironmentDaoTest {
   }
 
   @Test
-  void testGetEnvByIdFailure() {
-
-    // Arrange
-    long envId = 1001;
-    Tuple idTuple = Tuple.of(envId);
-    try (MockedStatic<Tuple> tuple = Mockito.mockStatic(Tuple.class)) {
-      tuple.when(() -> Tuple.of(envId)).thenReturn(idTuple);
-
-      when(this.mysqlClient
-              .getSlaveClient()
-              .preparedQuery(MysqlQuery.ENVIRONMENT_BY_ID)
-              .rxExecute(Tuple.of(envId)))
-          .thenReturn(Single.just(rowSet));
-
-      when(this.rowSet.size()).thenReturn(0);
-
-      // Act and Assert
-      environmentDao
-          .getEnvironmentById(envId)
-          .test()
-          .assertSubscribed()
-          .assertError(
-              throwable -> {
-                assertTrue(throwable instanceof GrpcException);
-                assertEquals("Environment with id:" + envId + " not found", throwable.getMessage());
-                return true;
-              });
-    }
-  }
-
-  @Test
   void testCreateEnvironmentFailure() {
 
     // Arrange
