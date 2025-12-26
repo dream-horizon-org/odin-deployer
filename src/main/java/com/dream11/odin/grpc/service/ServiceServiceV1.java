@@ -25,7 +25,7 @@ public class ServiceServiceV1 extends RxServiceServiceGrpc.ServiceServiceImplBas
         .doOnSuccess(req -> log.info("Received deploy service request: {}", req))
         .flatMapPublisher(
             req ->
-                serviceBusiness.deployService(
+                this.serviceBusiness.deployService(
                     req,
                     ApplicationContext.getUserDetails(),
                     ApplicationContext.getTraceId())) // todo: use execution id instead
@@ -56,7 +56,7 @@ public class ServiceServiceV1 extends RxServiceServiceGrpc.ServiceServiceImplBas
         .doOnSuccess(req -> log.info("Received undeploy service request: {}", req))
         .flatMapPublisher(
             req ->
-                serviceBusiness
+                this.serviceBusiness
                     .undeployService(
                         req.getEnvName(),
                         req.getServiceName(),

@@ -49,18 +49,23 @@ import lombok.extern.slf4j.Slf4j;
 public class ServiceComponentDao {
   final MysqlClient mysqlClient;
 
-  public Single<EnvironmentServiceEntityWithComponents> getEnvironmentServiceWithComponents(
+  public Maybe<EnvironmentServiceEntityWithComponents> getEnvironmentServiceWithComponentsIfExists(
       long envId, String serviceName) {
     return this.mysqlClient
         .getSlaveClient()
         .preparedQuery(GET_ENVIRONMENT_SERVICE_COMPONENTS + EOL)
         .rxExecute(Tuple.of(envId, serviceName))
         .filter(rowSet -> rowSet.size() > 0)
+        .map(this::buildEnvironmentServiceEntityWithComponents);
+  }
+
+  public Single<EnvironmentServiceEntityWithComponents> getEnvironmentServiceWithComponents(
+      long envId, String serviceName) {
+    return this.getEnvironmentServiceWithComponentsIfExists(envId, serviceName)
         .switchIfEmpty(
             Single.error(
                 ExceptionUtil.getException(
-                    OdinError.SERVICE_DOES_NOT_EXIST_IN_ENV, serviceName, envId)))
-        .map(this::buildEnvironmentServiceEntityWithComponents);
+                    OdinError.SERVICE_DOES_NOT_EXIST_IN_ENV, serviceName, envId)));
   }
 
   public Single<EnvironmentServiceEntityWithComponents> getEnvironmentServiceWithComponent(
@@ -74,17 +79,6 @@ public class ServiceComponentDao {
             Single.error(
                 ExceptionUtil.getException(
                     OdinError.COMPONENT_DOES_NOT_EXIST_IN_SERVICE, componentName, serviceName)))
-        .map(this::buildEnvironmentServiceEntityWithComponents);
-  }
-
-  // TODO AKSHAY Remove this and use getEnvironmentServiceWithComponents instead
-  public Maybe<EnvironmentServiceEntityWithComponents> getServiceComponentStateInEnv(
-      long orgId, String envName, String serviceName) {
-    return mysqlClient
-        .getSlaveClient()
-        .preparedQuery(GET_ENV_SERVICE_COMPONENT)
-        .rxExecute(Tuple.of(orgId, envName, serviceName))
-        .filter(rowSet -> rowSet.size() > 0)
         .map(this::buildEnvironmentServiceEntityWithComponents);
   }
 
@@ -109,7 +103,7 @@ public class ServiceComponentDao {
         .rxExecute(Tuple.wrap(params))
         .flatMap(
             __ ->
-                getEnvironmentServiceId(
+                this.getEnvironmentServiceId(
                     sqlConnection, environmentId, environmentServiceEntity.getServiceName()));
   }
 

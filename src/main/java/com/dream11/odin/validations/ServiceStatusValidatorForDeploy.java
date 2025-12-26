@@ -24,15 +24,15 @@ import lombok.AllArgsConstructor;
 public class ServiceStatusValidatorForDeploy extends Validator {
 
   private final ServiceComponentDao serviceComponentDao;
-  private final String envName;
+  private final long envId;
   Map<ComponentIdentifier, ComponentData> componentDataMap;
   private final ServiceData serviceData;
-  private final long orgId;
 
   @Override
   public Completable validate() {
     return serviceComponentDao
-        .getServiceComponentStateInEnv(orgId, envName, serviceData.getServiceDefinition().getName())
+        .getEnvironmentServiceWithComponentsIfExists(
+            envId, serviceData.getServiceDefinition().getName())
         .flatMapCompletable(
             environmentServiceEntityWithComponents -> {
               if (!validateServiceTaskStatusForDeploy(

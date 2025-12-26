@@ -57,7 +57,7 @@ public class ComponentEnrichmentService {
     }
     return componentTaskDao
         .getLatestSuccessfulDeployOrOperateComponentTask(
-            requestMetaContext.getEnvironment().getId(),
+            requestMetaContext.getEnvironment().id(),
             requestMetaContext.getServiceName(),
             componentData.getComponentDefinition().getName())
         .map(

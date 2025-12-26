@@ -20,7 +20,9 @@ public class NamespaceResponseProcessor implements ResponseProcessor {
     // TODO update status for only target environment account
     return this.environmentDao
         .updateExecutionStatus(message)
-        .andThen(this.environmentDao.updateEnvironmentAccountStatus(message))
+        .andThen(
+            this.environmentDao.updateEnvironmentAccountStatus(
+                message.getId(), message.getStatus()))
         .andThen(
             this.environmentDao.setEnvironmentInActiveForDeleteEnvironmentTask(
                 message.getId())) // TODO why is this needed

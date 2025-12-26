@@ -68,7 +68,7 @@ public class MysqlQuery {
 
   public static final String UPDATE_ENVIRONMENT_ACCOUNT_STATUS =
       """
-    UPDATE environment_account SET status = ? WHERE id = ?
+    UPDATE environment_account SET status = ? WHERE id = ?;
   """;
 
   public static final String GET_ENVIRONMENT_SERVICES =
@@ -117,16 +117,7 @@ public class MysqlQuery {
   public static final String GET_ENVIRONMENT_SERVICE_COMPONENT =
       GET_ENVIRONMENT_SERVICE_COMPONENTS + " AND esc.name=?;";
 
-  public static final String GET_ENV_SERVICE_COMPONENT =
-      "SELECT e.name AS environment_name, e.id AS environment_id, s.name AS service_name, "
-          + "s.action AS service_action, s.status AS service_status, s.created_by AS created_by,"
-          + " s.updated_by AS updated_by, c.name AS component_name,"
-          + " c.action AS component_action, c.status AS component_status "
-          + "FROM environment e JOIN environment_service s ON e.id = s.environment_id "
-          + "JOIN environment_service_component c ON s.id = c.environment_service_id "
-          + "WHERE e.org_id = ? AND e.name = ? AND s.name = ?; ";
-
-  // TODO AKSHAY Delete below this
+  // TODO AKSHAY Review and delete below this
   private static final String SELECT_SERVICE_TASK_FIELDS =
       "SELECT service_task.id AS id, env_id, service_task.name, service_version, "
           + "config, service_config_hash, action.name AS actions, status, service_task.version, "
@@ -225,11 +216,6 @@ INSERT INTO environment_service_component
           + "WHERE env_id = ? AND service_task.name = ? and status in ('FAILED', 'SUCCESSFUL') "
           + "ORDER BY service_task.id DESC "
           + "LIMIT 1;";
-
-  public static final String GET_SERVICE_NAME_AND_ENV_NAME_BY_ID =
-      "SELECT  service_task.name as service_name,environment.name as environment_name"
-          + " FROM "
-          + "service_task  JOIN environment ON env_id =environment.id  WHERE service_task.id = ?";
 
   public static final String GET_LATEST_SERVICE_TASK_FROM_ENV_AND_ORG =
       SELECT_SERVICE_TASK_FIELDS

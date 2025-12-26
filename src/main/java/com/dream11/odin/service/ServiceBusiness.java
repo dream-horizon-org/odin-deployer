@@ -40,6 +40,8 @@ import com.dream11.odin.dto.v1.ServiceTask;
 import com.dream11.odin.entity.ComponentEntity;
 import com.dream11.odin.entity.ComponentTaskEntity;
 import com.dream11.odin.entity.ComponentValidateTaskEntity;
+import com.dream11.odin.entity.EnvironmentEntity;
+import com.dream11.odin.entity.EnvironmentEntityWithEnvironmentAccounts;
 import com.dream11.odin.entity.EnvironmentServiceEntity;
 import com.dream11.odin.entity.EnvironmentServiceEntityWithComponents;
 import com.dream11.odin.entity.ServiceTaskEntity;
@@ -67,7 +69,6 @@ import com.dream11.odin.util.ComponentUtil;
 import com.dream11.odin.util.ErrorMapperUtil;
 import com.dream11.odin.util.JsonUtil;
 import com.dream11.odin.util.ServiceUtil;
-import com.dream11.odin.util.SharedDataUtil;
 import com.dream11.odin.util.SingleUtil;
 import com.dream11.odin.util.ValidationUtil;
 import com.dream11.odin.validations.EnvironmentRunningValidator;
@@ -163,25 +164,28 @@ public class ServiceBusiness {
   private Flowable<DeployServiceResponse> deployService(
       ServiceDefinition serviceDefinition,
       ProvisioningConfig provisioningConfig,
-      String envName,
+      EnvironmentEntityWithEnvironmentAccounts envWithAccounts,
       UserDetails userDetails,
       String executionId) {
-    ServiceData serviceData = buildServiceData(serviceDefinition, provisioningConfig);
-    return fetchEnvironment(userDetails.getOrgId(), envName)
+    ServiceData serviceData = this.buildServiceData(serviceDefinition, provisioningConfig);
+    Map<String, Action> deployActions = this.getAllComponentActions(serviceData, Action.DEPLOY);
+    List<AccountInformation> accountInformationList =
+        envWithAccounts.getEnvironmentAccounts().stream()
+            .map(AccountUtils::getAccountInformation)
+            .toList();
+    Map<ComponentIdentifier, ComponentData> componentData =
+        this.getComponentsDataMap(serviceData, accountInformationList, deployActions);
+    return this.validateAndFilterComponents(
+            serviceData, envWithAccounts, userDetails, provisioningConfig, componentData)
         .flatMapPublisher(
-            env -> {
-              Map<String, Action> deployActions =
-                  getAllComponentActions(serviceData, Action.DEPLOY);
-              Map<ComponentIdentifier, ComponentData> componentData =
-                  getComponentsDataMap(serviceData, env.getAccountInformationList(), deployActions);
-              return validateAndFilterComponents(
-                      serviceData, env, userDetails, provisioningConfig, componentData)
-                  .flatMapPublisher(
-                      updatedData ->
-                          orchestrateAndPoll(
-                              serviceData, env, userDetails, updatedData, executionId))
-                  .map(this::toDeployServiceResponse);
-            });
+            updatedData ->
+                this.orchestrateAndPoll(
+                    serviceData,
+                    envWithAccounts.getEnvironment(),
+                    userDetails,
+                    updatedData,
+                    executionId))
+        .map(this::toDeployServiceResponse);
   }
 
   private ServiceData buildServiceData(ServiceDefinition def, ProvisioningConfig config) {
@@ -191,44 +195,46 @@ public class ServiceBusiness {
         .build();
   }
 
-  Single<Environment> fetchEnvironment(Long orgId, String envName) {
-    return environmentDao.getEnvironmentByNameWithAllFields(orgId, envName);
-  }
-
   private Single<Map<ComponentIdentifier, ComponentData>> validateAndFilterComponents(
       ServiceData serviceData,
-      Environment environment,
+      EnvironmentEntityWithEnvironmentAccounts envWithAccounts,
       UserDetails userDetails,
       ProvisioningConfig provisioningConfig,
       Map<ComponentIdentifier, ComponentData> componentData) {
     return ValidationUtil.validateService(serviceData)
         .andThen(
-            ValidationUtil.validateEnvState(environmentDao, environment.getName(), userDetails))
-        .andThen(validateDeploymentType(provisioningConfig, environment, environment.getName()))
-        .andThen(replacePlaceholders(componentData, serviceData, environment, userDetails))
+            ValidationUtil.validateEnvState(
+                environmentDao, envWithAccounts.getEnvironment().name(), userDetails))
+        .andThen(this.validateDeploymentType(provisioningConfig, envWithAccounts))
+        .andThen(
+            this.replacePlaceholders(
+                componentData, serviceData, envWithAccounts.getEnvironment(), userDetails))
         .flatMap(
             data ->
                 ValidationUtil.validateServiceState(
                         serviceComponentDao,
-                        environment.getName(),
+                        envWithAccounts.getEnvironment().id(),
                         data,
-                        serviceData,
-                        userDetails.getOrgId())
+                        serviceData)
                     .andThen(
-                        removeSuccessfulComponents(
-                            userDetails.getOrgId(), environment.getName(), serviceData, data)));
+                        this.removeSuccessfulComponents(
+                            envWithAccounts.getEnvironment().id(), serviceData, data)));
   }
 
   private Completable validateDeploymentType(
-      ProvisioningConfig provisioningConfig, Environment environment, String envName) {
+      ProvisioningConfig provisioningConfig,
+      EnvironmentEntityWithEnvironmentAccounts envWithAccounts) {
     return ValidationUtil.validateDeploymentTypePrefix(
-        provisioningConfig, environment.getAccountInformationList(), envName);
+        provisioningConfig,
+        envWithAccounts.getEnvironmentAccounts().stream()
+            .map(AccountUtils::getAccountInformation)
+            .toList());
   }
 
   private Single<Map<ComponentIdentifier, ComponentData>> replacePlaceholders(
       Map<ComponentIdentifier, ComponentData> componentData,
       ServiceData serviceData,
-      Environment environment,
+      EnvironmentEntity environment,
       UserDetails userDetails) {
 
     return placeholderService.replacePlaceholdersInComponents(
@@ -243,7 +249,7 @@ public class ServiceBusiness {
 
   private Flowable<ServiceResponse> orchestrateAndPoll(
       ServiceData serviceData,
-      Environment env,
+      EnvironmentEntity env,
       UserDetails userDetails,
       Map<ComponentIdentifier, ComponentData> componentData,
       String executionId) {
@@ -252,40 +258,40 @@ public class ServiceBusiness {
     Long orgId = userDetails.getOrgId();
 
     Completable validateAction =
-        orchestrateServiceAction(
+        this.orchestrateServiceAction(
             serviceName,
-            env.getName(),
+            env.name(),
             orgId,
-            env.getId(),
-            buildEnvironmentServiceEntityWithComponents(
-                env.getId(), userDetails, Action.VALIDATE, serviceData, componentData),
+            env.id(),
+            this.buildEnvironmentServiceEntityWithComponents(
+                env.id(), userDetails, Action.VALIDATE, serviceData, componentData),
             executionId,
             componentData,
             Action.VALIDATE,
             true);
 
     Completable deployAction =
-        orchestrateServiceAction(
+        this.orchestrateServiceAction(
             serviceName,
-            env.getName(),
+            env.name(),
             orgId,
-            env.getId(),
-            buildEnvironmentServiceEntityWithComponents(
-                env.getId(), userDetails, Action.DEPLOY, serviceData, componentData),
+            env.id(),
+            this.buildEnvironmentServiceEntityWithComponents(
+                env.id(), userDetails, Action.DEPLOY, serviceData, componentData),
             executionId,
             componentData,
             Action.DEPLOY,
             false);
 
     return validateAction
-        .andThen(databasePollerService.pollDatabase(serviceName, env.getName(), orgId))
+        .andThen(this.databasePollerService.pollDatabase(env.id(), serviceName))
         .flatMap(
             serviceResponse -> {
               if (TaskStatus.SUCCESSFUL
                   .getValue()
                   .equals(serviceResponse.getServiceStatus().getServiceStatus())) {
                 return deployAction.andThen(
-                    databasePollerService.pollDatabase(serviceName, env.getName(), orgId));
+                    this.databasePollerService.pollDatabase(env.id(), serviceName));
               }
               return Flowable.just(serviceResponse);
             });
@@ -360,12 +366,12 @@ public class ServiceBusiness {
   }
 
   private Single<Map<ComponentIdentifier, ComponentData>> removeSuccessfulComponents(
-      long orgId,
-      String envName,
+      long envId,
       ServiceData serviceData,
       Map<ComponentIdentifier, ComponentData> componentDataMap) {
-    return serviceComponentDao
-        .getServiceComponentStateInEnv(orgId, envName, serviceData.getServiceDefinition().getName())
+    return this.serviceComponentDao
+        .getEnvironmentServiceWithComponentsIfExists(
+            envId, serviceData.getServiceDefinition().getName())
         .map(
             environmentServiceEntityWithComponents -> {
               environmentServiceEntityWithComponents.getComponents().stream()
@@ -607,7 +613,7 @@ public class ServiceBusiness {
   public Flowable<ServiceResponse> validate(
       ServiceData serviceData,
       Map<ComponentIdentifier, ComponentData> componentDataMap,
-      Environment environment,
+      EnvironmentEntity environment,
       UserDetails userDetails) {
     Map<String, Object> validateStageConfig = Map.of("stageName", "deploy");
 
@@ -691,66 +697,68 @@ public class ServiceBusiness {
     validator.add(
         new EnvironmentRunningValidator(
             environmentDao, operateServiceRequest.getEnvName(), userDetails));
-    return serviceTaskDao
-        .getServiceTaskByTraceIdServiceNameEnvNameAndAction(
-            ApplicationContext.getTraceId(),
-            operateServiceRequest.getServiceName(),
-            operateServiceRequest.getEnvName())
-        .flatMapPublisher(
-            serviceTaskEntity -> {
-              log.info(
-                  "Found service task({}) for traceId, resuming from poller",
-                  serviceTaskEntity.getId());
-              return getResponseFromDBPoller(
-                  serviceTaskEntity.getId(), operateServiceRequest.getComponentName());
-            })
-        .switchIfEmpty(
-            validator
-                .validateAll()
-                .andThen(
-                    Flowable.defer(
-                        () ->
-                            environmentDao
-                                .getEnvironmentByNameWithAllFields(
-                                    userDetails.getOrgId(), operateServiceRequest.getEnvName())
-                                .flatMapPublisher(
-                                    environment -> {
-                                      GuiceInjector injector =
-                                          SharedDataUtil.getInstance(GuiceInjector.class);
-                                      if (operateServiceRequest.getIsComponentOperation()) {
-                                        return processComponentOperation(
-                                            operateServiceRequest,
-                                            environment,
-                                            userDetails,
-                                            injector,
-                                            resumeEnabled);
-                                      } else {
-                                        if (operateServiceRequest
-                                            .getOperation()
-                                            .equalsIgnoreCase(
-                                                ServiceOperations.ADD_COMPONENT.name())) {
-                                          return processAddComponentOperation(
-                                              operateServiceRequest,
-                                              environment,
-                                              userDetails,
-                                              injector);
-                                        } else if (operateServiceRequest
-                                            .getOperation()
-                                            .equalsIgnoreCase(
-                                                ServiceOperations.REMOVE_COMPONENT.name())) {
-                                          return processRemoveComponentOperation(
-                                              operateServiceRequest,
-                                              environment,
-                                              userDetails,
-                                              injector);
-                                        } else {
-                                          return Flowable.error(
-                                              ExceptionUtil.getException(
-                                                  OdinError.INVALID_SERVICE_OPERATION,
-                                                  operateServiceRequest.getOperation()));
-                                        }
-                                      }
-                                    }))));
+    return Flowable.just(OperateServiceResponse.newBuilder().build()); // TODO Implement this
+    //    return serviceTaskDao
+    //        .getServiceTaskByTraceIdServiceNameEnvNameAndAction(
+    //            ApplicationContext.getTraceId(),
+    //            operateServiceRequest.getServiceName(),
+    //            operateServiceRequest.getEnvName())
+    //        .flatMapPublisher(
+    //            serviceTaskEntity -> {
+    //              log.info(
+    //                  "Found service task({}) for traceId, resuming from poller",
+    //                  serviceTaskEntity.getId());
+    //              return getResponseFromDBPoller(
+    //                  serviceTaskEntity.getId(), operateServiceRequest.getComponentName());
+    //            })
+    //        .switchIfEmpty(
+    //            validator
+    //                .validateAll()
+    //                .andThen(
+    //                    Flowable.defer(
+    //                        () ->
+    //                            environmentDao
+    //                                .getEnvironmentByNameWithAllFields(
+    //                                    userDetails.getOrgId(),
+    // operateServiceRequest.getEnvName())
+    //                                .flatMapPublisher(
+    //                                    environment -> {
+    //                                      GuiceInjector injector =
+    //                                          SharedDataUtil.getInstance(GuiceInjector.class);
+    //                                      if (operateServiceRequest.getIsComponentOperation()) {
+    //                                        return processComponentOperation(
+    //                                            operateServiceRequest,
+    //                                            environment,
+    //                                            userDetails,
+    //                                            injector,
+    //                                            resumeEnabled);
+    //                                      } else {
+    //                                        if (operateServiceRequest
+    //                                            .getOperation()
+    //                                            .equalsIgnoreCase(
+    //                                                ServiceOperations.ADD_COMPONENT.name())) {
+    //                                          return processAddComponentOperation(
+    //                                              operateServiceRequest,
+    //                                              environment,
+    //                                              userDetails,
+    //                                              injector);
+    //                                        } else if (operateServiceRequest
+    //                                            .getOperation()
+    //                                            .equalsIgnoreCase(
+    //                                                ServiceOperations.REMOVE_COMPONENT.name())) {
+    //                                          return processRemoveComponentOperation(
+    //                                              operateServiceRequest,
+    //                                              environment,
+    //                                              userDetails,
+    //                                              injector);
+    //                                        } else {
+    //                                          return Flowable.error(
+    //                                              ExceptionUtil.getException(
+    //                                                  OdinError.INVALID_SERVICE_OPERATION,
+    //                                                  operateServiceRequest.getOperation()));
+    //                                        }
+    //                                      }
+    //                                    }))));
   }
 
   private Flowable<OperateServiceResponse> processRemoveComponentOperation(
@@ -970,25 +978,33 @@ public class ServiceBusiness {
             .equals(componentTaskEntity.getConfig().getJsonObject("provisioningConfig")));
   }
 
-  public Completable undeployServiceValidator(String envName, String serviceName, long orgId) {
+  public Completable undeployServiceValidator(long envId, String serviceName) {
     Validator validator = new Validator();
-    validator.add(
-        new ServiceStatusValidatorForUndeploy(serviceComponentDao, serviceName, envName, orgId));
+    validator.add(new ServiceStatusValidatorForUndeploy(serviceComponentDao, serviceName, envId));
     return validator.validateAll();
   }
 
   public Flowable<UndeployServiceResponse> undeployService(
       String envName, String serviceName, UserDetails userDetails, String executionId) {
 
-    return undeployServiceValidator(envName, serviceName, userDetails.getOrgId())
-        .andThen(undeployServiceWithoutValidations(envName, serviceName, userDetails, executionId));
+    return this.environmentDao
+        .getEnvironmentWithAccounts(userDetails.getOrgId(), envName)
+        .flatMapPublisher(
+            envWithAccounts ->
+                this.undeployServiceValidator(envWithAccounts.getEnvironment().id(), serviceName)
+                    .andThen(
+                        this.undeployServiceWithoutValidations(
+                            envWithAccounts.getEnvironment(),
+                            serviceName,
+                            userDetails,
+                            executionId)));
   }
 
   public Flowable<UndeployServiceResponse> undeployServiceWithoutValidations(
-      String envName, String serviceName, UserDetails userDetails, String executionId) {
+      EnvironmentEntity env, String serviceName, UserDetails userDetails, String executionId) {
 
     // TODO: handle service undeploy with no components
-    return undeployComponents(serviceName, envName, userDetails, executionId)
+    return this.undeployComponents(env, serviceName, userDetails, executionId)
         .map(
             serviceResponse ->
                 UndeployServiceResponse.newBuilder().setServiceResponse(serviceResponse).build());
@@ -1057,43 +1073,35 @@ public class ServiceBusiness {
   }
 
   private Flowable<ServiceResponse> undeployComponents(
-      String serviceName, String environmentName, UserDetails userDetails, String executionId) {
-    return this.environmentDao
-        .getEnvironmentWithAccounts(userDetails.getOrgId(), environmentName)
-        .flatMapPublisher(
-            envWithAccounts ->
-                databasePollerService
-                    .pollDatabase(serviceName, environmentName, userDetails.getOrgId())
-                    .flatMap(
-                        serviceResponse ->
-                            isUndeployInProgressOrSuccessful(serviceResponse)
-                                ? Flowable.just(serviceResponse)
-                                : serviceComponentDao
-                                    .getServiceComponentStateInEnv(
-                                        userDetails.getOrgId(), environmentName, serviceName)
-                                    .flatMapPublisher(
-                                        environmentServiceEntityWithComponents -> {
-                                          EnvironmentServiceEntityWithComponents
-                                              updatedEnvironmentServiceEntity =
-                                                  filterAndBuildEnvironmentServiceEntityWithComponents(
-                                                      environmentServiceEntityWithComponents);
-                                          return orchestrateServiceAction(
-                                                  serviceName,
-                                                  environmentName,
-                                                  userDetails.getOrgId(),
-                                                  envWithAccounts.getEnvironment().id(),
-                                                  updatedEnvironmentServiceEntity,
-                                                  executionId,
-                                                  buildComponentDataMap(
-                                                      updatedEnvironmentServiceEntity),
-                                                  Action.UNDEPLOY,
-                                                  true)
-                                              .andThen(
-                                                  databasePollerService.pollDatabase(
-                                                      serviceName,
-                                                      environmentName,
-                                                      userDetails.getOrgId()));
-                                        })));
+      EnvironmentEntity env, String serviceName, UserDetails userDetails, String executionId) {
+    return this.databasePollerService
+        .pollDatabase(env.id(), serviceName)
+        .flatMap(
+            serviceResponse ->
+                this.isUndeployInProgressOrSuccessful(serviceResponse)
+                    ? Flowable.just(serviceResponse)
+                    : this.serviceComponentDao
+                        .getEnvironmentServiceWithComponents(env.id(), serviceName)
+                        .flatMapPublisher(
+                            environmentServiceEntityWithComponents -> {
+                              EnvironmentServiceEntityWithComponents
+                                  updatedEnvironmentServiceEntity =
+                                      this.filterAndBuildEnvironmentServiceEntityWithComponents(
+                                          environmentServiceEntityWithComponents);
+                              return this.orchestrateServiceAction(
+                                      serviceName,
+                                      env.name(),
+                                      userDetails.getOrgId(),
+                                      env.id(),
+                                      updatedEnvironmentServiceEntity,
+                                      executionId,
+                                      buildComponentDataMap(updatedEnvironmentServiceEntity),
+                                      Action.UNDEPLOY,
+                                      true)
+                                  .andThen(
+                                      this.databasePollerService.pollDatabase(
+                                          env.id(), serviceName));
+                            }));
   }
 
   private Flowable<ServiceResponse> filterUndeployedComponentsAndApplyAction(
@@ -1237,10 +1245,10 @@ public class ServiceBusiness {
 
   // TODO why this needs both envName and envID?
   public Flowable<List<UndeployServiceResponse>> undeployAllServicesInEnvWithoutValidations(
-      String envName, Long envId, UserDetails userDetails) {
+      EnvironmentEntity env, UserDetails userDetails) {
 
     return serviceTaskDao
-        .getLatestServiceTasks(envId)
+        .getLatestServiceTasks(env.id())
         .flatMapPublisher(
             serviceNames -> {
               if (serviceNames.isEmpty()) {
@@ -1262,8 +1270,8 @@ public class ServiceBusiness {
                   serviceNames.stream()
                       .map(
                           serviceName ->
-                              undeployServiceWithoutValidations(
-                                  envName, serviceName, userDetails, ""))
+                              this.undeployServiceWithoutValidations(
+                                  env, serviceName, userDetails, ""))
                       .toList(),
                   objects ->
                       Arrays.stream(objects).map(UndeployServiceResponse.class::cast).toList());
@@ -1496,44 +1504,47 @@ public class ServiceBusiness {
   @SneakyThrows
   public Flowable<DeployServiceResponse> deployService(
       DeployServiceRequest request, UserDetails userDetails, String executionId) {
-    return executionTaskDao
-        .getExecutionByIdAndAction(executionId, Action.DEPLOY.getName())
+    return this.environmentDao
+        .getEnvironmentWithAccounts(userDetails.getOrgId(), request.getEnvName())
         .flatMapPublisher(
-            executionTaskEntityList ->
-                databasePollerService
-                    .pollDatabase(
-                        request.getServiceDefinition().getName(),
-                        request.getEnvName(),
-                        userDetails.getOrgId())
-                    .map(
-                        serviceResponse -> {
-                          log.info(
-                              "Found response for executionId: {}, serviceName: {}, envName: {}",
-                              executionId,
-                              request.getServiceDefinition().getName(),
-                              request.getEnvName());
-                          return DeployServiceResponse.newBuilder()
-                              .setServiceResponse(serviceResponse)
-                              .build();
-                        }))
-        .switchIfEmpty(
-            deployService(
-                    request.getServiceDefinition(),
-                    request.getProvisioningConfig(),
-                    request.getEnvName(),
-                    userDetails,
-                    executionId)
-                .map(
-                    response -> {
-                      if (response.hasServiceResponse()) {
-                        return response.toBuilder()
-                            .setServiceResponse(
-                                response.getServiceResponse().toBuilder()
-                                    .setName(request.getServiceDefinition().getName())
-                                    .build())
-                            .build();
-                      }
-                      return response;
-                    }));
+            envWithAccounts ->
+                this.executionTaskDao
+                    .getExecutionByIdAndAction(executionId, Action.DEPLOY.getName())
+                    .flatMapPublisher(
+                        executionTaskEntityList ->
+                            this.databasePollerService
+                                .pollDatabase(
+                                    envWithAccounts.getEnvironment().id(),
+                                    request.getServiceDefinition().getName())
+                                .map(
+                                    serviceResponse -> {
+                                      log.info(
+                                          "Found response for executionId: {}, serviceName: {}, envName: {}",
+                                          executionId,
+                                          request.getServiceDefinition().getName(),
+                                          request.getEnvName());
+                                      return DeployServiceResponse.newBuilder()
+                                          .setServiceResponse(serviceResponse)
+                                          .build();
+                                    }))
+                    .switchIfEmpty(
+                        this.deployService(
+                                request.getServiceDefinition(),
+                                request.getProvisioningConfig(),
+                                envWithAccounts,
+                                userDetails,
+                                executionId)
+                            .map(
+                                response -> {
+                                  if (response.hasServiceResponse()) {
+                                    return response.toBuilder()
+                                        .setServiceResponse(
+                                            response.getServiceResponse().toBuilder()
+                                                .setName(request.getServiceDefinition().getName())
+                                                .build())
+                                        .build();
+                                  }
+                                  return response;
+                                })));
   }
 }

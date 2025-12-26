@@ -21,7 +21,6 @@ import com.dream11.odin.dto.RequestMetaContext;
 import com.dream11.odin.dto.UserDetails;
 import com.dream11.odin.dto.constants.RequestMessageType;
 import com.dream11.odin.dto.request.RequestMessage;
-import com.dream11.odin.dto.v1.AccountInformation;
 import com.dream11.odin.dto.v1.Component;
 import com.dream11.odin.dto.v1.Environment;
 import com.dream11.odin.dto.v1.EnvironmentSummary;
@@ -40,6 +39,7 @@ import com.dream11.odin.grpc.provideraccount.v1.GetProviderAccountRequest;
 import com.dream11.odin.grpc.provideraccount.v1.GetProviderAccountResponse;
 import com.dream11.odin.grpc.provideraccount.v1.RxProviderAccountServiceGrpc;
 import com.dream11.odin.grpc.service.UndeployServiceResponse;
+import com.dream11.odin.util.AccountUtils;
 import com.dream11.odin.util.ApplicationUtil;
 import com.dream11.odin.util.DateTimeUtil;
 import com.dream11.odin.util.EnvironmentUtil;
@@ -188,18 +188,7 @@ public class EnvironmentBusiness {
         .setStatus(envWithAccounts.getEnvironment().status())
         .addAllAccountInformation(
             envWithAccounts.getEnvironmentAccounts().stream()
-                .map(
-                    environmentAccount ->
-                        AccountInformation.newBuilder()
-                            .setProviderAccountName(environmentAccount.accountName())
-                            .setStatus(
-                                EnvironmentUtil.getStatus(
-                                    environmentAccount.action(), environmentAccount.status()))
-                            .setServiceAccountsSnapshot(
-                                JsonUtil.jsonToProtoBuilder(
-                                    environmentAccount.accountData(),
-                                    GetProviderAccountResponse.newBuilder()))
-                            .build())
+                .map(AccountUtils::getAccountInformation)
                 .toList());
   }
 
@@ -289,7 +278,7 @@ public class EnvironmentBusiness {
                                   providerAccountResponses,
                                   RequestMetaContext.builder()
                                       .environment(
-                                          Environment.newBuilder().setName(environmentName).build())
+                                          EnvironmentEntity.builder().name(environmentName).build())
                                       .userDetails(userDetails)
                                       .build())
                               .flatMapPublisher(
@@ -471,8 +460,7 @@ public class EnvironmentBusiness {
                 this.triggerEnvDeletion(envWithAccounts).andThen(Single.just(envWithAccounts)))
         .flatMapPublisher(
             envWithAccounts ->
-                this.undeployServicesForEnvDeletion(
-                        environmentName, envWithAccounts.getEnvironment().id(), userDetails)
+                this.undeployServicesForEnvDeletion(envWithAccounts.getEnvironment(), userDetails)
                     .map(
                         undeployServiceResponses ->
                             undeployServiceResponses.stream()
@@ -539,9 +527,9 @@ public class EnvironmentBusiness {
   }
 
   private Single<List<UndeployServiceResponse>> undeployServicesForEnvDeletion(
-      String environmentName, long envId, UserDetails userDetails) {
+      EnvironmentEntity env, UserDetails userDetails) {
     return this.serviceBusiness
-        .undeployAllServicesInEnvWithoutValidations(environmentName, envId, userDetails)
+        .undeployAllServicesInEnvWithoutValidations(env, userDetails)
         .takeUntil(
             (Predicate<? super List<UndeployServiceResponse>>)
                 undeployServiceResponses ->
@@ -590,100 +578,4 @@ public class EnvironmentBusiness {
                     .toList()))
         .andThen(this.waitForDeleteEnvStatusUpdate(envWithAccounts.getEnvironment().id()));
   }
-
-  // TODO AKSHAY Delete below this
-
-  //  public Flowable<StatusEnvironmentResponse> getEnvironmentStatus(
-  //      Long orgId, String envName, String serviceName, UserDetails userDetails) {
-  //    Map<String, DeployedServiceStatus> serviceTracker = new HashMap<>();
-  //
-  //    return environmentDao
-  //        .getEnvironmentWithServices(orgId, envName)
-  //        .flatMapPublisher(
-  //            environment -> {
-  //              if (environment.getStatus().equalsIgnoreCase(EnvironmentStatus.DELETED.name())) {
-  //                throw ExceptionUtil.getException(ENV_DOES_NOT_EXIST, envName);
-  //              } else if (!environment
-  //                  .getStatus()
-  //                  .equalsIgnoreCase(EnvironmentStatus.RUNNING.name())) {
-  //                throw ExceptionUtil.getException(
-  //                    ENV_NOT_RUNNING, environment.getName(), environment.getStatus());
-  //              }
-  //              return serviceBusiness
-  //                  .getAllServiceStatus(environment, userDetails, serviceName)
-  //                  .flatMap(
-  //                      serviceResponse ->
-  //                          buildStatusEnvironmentResponse(envName, serviceResponse,
-  // serviceTracker));
-  //            });
-  //  }
-  //
-  //  private Flowable<StatusEnvironmentResponse> buildStatusEnvironmentResponse(
-  //      String envName,
-  //      StatusEnvironmentResponse serviceResponse,
-  //      Map<String, DeployedServiceStatus> serviceTracker) {
-  //    StatusEnvironmentResponse.Builder statusResponseBuilder =
-  //        StatusEnvironmentResponse.newBuilder();
-  //    BinaryOperator<String> statusReducer =
-  //        (status1, status2) -> {
-  //          if (status1.equalsIgnoreCase(TaskStatus.FAILED.toString())
-  //              || status2.equalsIgnoreCase(TaskStatus.FAILED.toString())) {
-  //            return TaskStatus.FAILED.name();
-  //          } else if (status1.equalsIgnoreCase(TaskStatus.IN_PROGRESS.toString())
-  //              || status2.equalsIgnoreCase(TaskStatus.IN_PROGRESS.toString())) {
-  //            return TaskStatus.IN_PROGRESS.name();
-  //          } else {
-  //            return EnvironmentStatus.RUNNING.name();
-  //          }
-  //        };
-  //    serviceResponse
-  //        .getServicesStatusList()
-  //        .forEach(
-  //            service -> {
-  //              Map<String, StatusEnvComponentStatus> componentStatusLiveMap =
-  //                  service.getComponentStatusList().stream()
-  //                      .map(
-  //                          statusEnvComponentStatus ->
-  //                              statusEnvComponentStatus.toBuilder()
-  //                                  .setComponentStatus(
-  //                                      statusEnvComponentStatus
-  //                                              .getComponentStatus()
-  //
-  // .equalsIgnoreCase(TaskStatus.SUCCESSFUL.toString())
-  //                                          ? ComponentStatus.RUNNING.name()
-  //                                          : statusEnvComponentStatus.getComponentStatus())
-  //                                  .build())
-  //                      .collect(
-  //                          Collectors.toMap(
-  //                              StatusEnvComponentStatus::getComponentName,
-  //                              statusEnvComponentStatus -> statusEnvComponentStatus));
-  //
-  //              String serviceStatus =
-  //                  componentStatusLiveMap.values().stream()
-  //                      .map(StatusEnvComponentStatus::getComponentStatus)
-  //                      .reduce(statusReducer)
-  //                      .orElse(ServiceStatus.RUNNING.name());
-  //
-  //              DeployedServiceStatus serviceComponentStatus =
-  //                  DeployedServiceStatus.newBuilder()
-  //                      .setServiceName(service.getServiceName())
-  //                      .setServiceStatus(serviceStatus)
-  //                      .setServiceVersion(service.getServiceVersion())
-  //                      .setLastDeployed(service.getLastDeployed())
-  //                      .addAllComponentStatus(componentStatusLiveMap.values())
-  //                      .build();
-  //
-  //              serviceTracker.put(service.getServiceName(), serviceComponentStatus);
-  //            });
-  //
-  //    statusResponseBuilder.addAllServicesStatus(serviceTracker.values());
-  //    statusResponseBuilder.setEnvName(envName);
-  //    statusResponseBuilder.setEnvStatus(
-  //        serviceTracker.values().stream()
-  //            .map(DeployedServiceStatus::getServiceStatus)
-  //            .reduce(statusReducer)
-  //            .orElse(EnvironmentStatus.RUNNING.name()));
-  //
-  //    return Flowable.just(statusResponseBuilder.build());
-  //  }
 }

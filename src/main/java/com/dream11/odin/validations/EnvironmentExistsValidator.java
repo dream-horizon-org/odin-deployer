@@ -34,14 +34,14 @@ public class EnvironmentExistsValidator extends Validator {
   @Override
   public Completable validate() {
     return this.environmentDao
-        .getEnvironmentByNameAndIsActiveIfExists(userDetails.getOrgId(), this.environmentName)
+        .getEnvironmentWithAccountsIfExists(userDetails.getOrgId(), this.environmentName)
         .doOnSuccess(
             environment -> {
-              if (VALID_STATUS.contains(environment.getStatus())) {
-                throw ExceptionUtil.getException(ENV_ALREADY_EXISTS, environment.getStatus());
+              if (VALID_STATUS.contains(environment.getEnvironment().status())) {
+                throw ExceptionUtil.getException(
+                    ENV_ALREADY_EXISTS, environment.getEnvironment().status());
               }
             })
-        .doOnError(err -> log.error("Error {}", err.getMessage(), err))
         .ignoreElement();
   }
 }

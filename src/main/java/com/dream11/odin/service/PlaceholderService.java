@@ -172,7 +172,7 @@ public class PlaceholderService {
                 Map.of(
                     "envName",
                     Value.newBuilder()
-                        .setStringValue(requestMetaContext.getEnvironment().getName())
+                        .setStringValue(requestMetaContext.getEnvironment().name())
                         .build(),
                     "userEmail",
                     Value.newBuilder()
@@ -197,7 +197,7 @@ public class PlaceholderService {
       ComponentData componentData, RequestMetaContext requestMetaContext) {
     Map<String, String> placeholders = new HashMap<>();
     placeholders.put(ODIN_COMPONENT_NAME, componentData.getComponentDefinition().getName());
-    placeholders.put(ODIN_ENV_NAME, requestMetaContext.getEnvironment().getName());
+    placeholders.put(ODIN_ENV_NAME, requestMetaContext.getEnvironment().name());
     placeholders.put(ODIN_SERVICE_NAME, requestMetaContext.getServiceName());
     placeholders.put(ODIN_COMPONENT_VERSION, componentData.getComponentDefinition().getVersion());
     placeholders.put(ODIN_COMPONENT_TYPE, componentData.getComponentDefinition().getType());

@@ -19,7 +19,6 @@ public class ComponentDeploymentTypeValidator extends Validator {
 
   ProvisioningConfig provisioningConfig;
   List<AccountInformation> accountInformationList;
-  String envName;
 
   @Override
   public Completable validate() {
