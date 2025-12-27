@@ -18,6 +18,7 @@ import com.dream11.odin.service.responseprocessor.ServiceResponseProcessor;
 import com.dream11.odin.util.ContextUtil;
 import com.dream11.odin.util.SharedDataUtil;
 import com.dream11.odin.util.SingleUtil;
+import com.dream11.queue.Message;
 import com.dream11.queue.consumer.MessageConsumer;
 import com.dream11.queue.consumer.MessageConsumerFactory;
 import com.dream11.queue.impl.sqs.SqsConsumer;
@@ -29,13 +30,12 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.reactivex.core.AbstractVerticle;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
-import software.amazon.awssdk.services.sqs.model.Message;
 
 @Slf4j
 public class ConsumerVerticle extends AbstractVerticle {
 
   ClassInjector classInjector;
-  MessageConsumer<Message> messageConsumer;
+  MessageConsumer messageConsumer;
   MysqlClient mysqlClient;
   WebClient webClient;
 
@@ -61,7 +61,7 @@ public class ConsumerVerticle extends AbstractVerticle {
     if (this.messageConsumer instanceof SqsConsumer) {
       SingleUtil.toSingle(this.messageConsumer.receive(RECEIVE_WAIT_TIMEOUT_SECONDS))
           .flattenAsObservable(message -> message)
-          .filter(message -> message.body() != null && !message.body().isEmpty())
+          .filter(message -> message.getBody() != null && !message.getBody().isEmpty())
           .flatMapSingle(this::processMessage)
           .doFinally(this::pollForMessages)
           .subscribe(
@@ -71,15 +71,16 @@ public class ConsumerVerticle extends AbstractVerticle {
   }
 
   private Single<ResponseMessage> processMessage(Message message) throws JsonProcessingException {
-    log.info("Message received: {}", message.body());
+    log.info("Message received: {}", message.getBody());
     ResponseMessage responseMessage =
         this.classInjector
             .getInstance(ObjectMapper.class)
-            .readValue(message.body(), ResponseMessage.class);
+            .readValue(message.getBody(), ResponseMessage.class);
     return this.getProcessor(responseMessage.getType())
         .process(responseMessage)
         .andThen(
-            Single.defer(() -> SingleUtil.toSingle(messageConsumer.acknowledgeMessage(message)))
+            Single.defer(
+                    () -> SingleUtil.toSingle(this.messageConsumer.acknowledgeMessage(message)))
                 .map(ack -> responseMessage));
   }
 
