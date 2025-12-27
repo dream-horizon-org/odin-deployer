@@ -292,7 +292,6 @@ public class EnvironmentBusiness {
 
   private Single<List<GetProviderAccountResponse>> getProviderAccountsResponses(
       List<String> accounts) {
-    // TODO AKSHAY make this parallel
     return Observable.fromIterable(accounts)
         .flatMap(
             account -> {
@@ -301,7 +300,7 @@ public class EnvironmentBusiness {
               metadata.put(
                   Metadata.Key.of(Constants.ORG_ID_HEADER, Metadata.ASCII_STRING_MARSHALLER),
                   ApplicationContext.getUserDetails().getOrgId().toString());
-              return providerAccountService
+              return this.providerAccountService
                   .withInterceptors(MetadataUtils.newAttachHeadersInterceptor(metadata))
                   .getProviderAccount(
                       GetProviderAccountRequest.newBuilder()
@@ -474,7 +473,10 @@ public class EnvironmentBusiness {
                         failedUndeployments -> {
                           if (failedUndeployments.isEmpty()) {
                             // Undeploy successful delete namespaces
-                            return this.deleteNamespaces(envWithAccounts);
+                            return this.deleteNamespaces(envWithAccounts)
+                                .andThen(
+                                    this.waitForDeleteEnvStatusUpdate(
+                                        envWithAccounts.getEnvironment().id()));
                           } else {
                             // Mark env deletion failure
                             return this.transactionDao
@@ -485,7 +487,7 @@ public class EnvironmentBusiness {
                                                 connection,
                                                 envWithAccounts.getEnvironment().id(),
                                                 Action.DELETE_ENVIRONMENT,
-                                                TaskStatus.IN_PROGRESS)
+                                                TaskStatus.FAILED)
                                             .andThen(
                                                 this.lockDao.releaseEnvironmentExclusiveLock(
                                                     envWithAccounts.getEnvironment().id()))
@@ -515,6 +517,9 @@ public class EnvironmentBusiness {
                         })
                     .ignoreElement()
                     .andThen(
+                        // TODO Filter environment accounts which were deleted successfully to avoid
+                        // duplicate deletion, though it won't cause problems since env deletion is
+                        // idempotent
                         this.environmentDao.updateEnvironmentAccounts(
                             connection,
                             envWithAccounts.getEnvironment().id(),
@@ -542,8 +547,7 @@ public class EnvironmentBusiness {
         .lastOrError();
   }
 
-  private Flowable<DeleteEnvironmentResponse> deleteNamespaces(
-      EnvironmentEntityWithEnvironmentAccounts envWithAccounts) {
+  private Completable deleteNamespaces(EnvironmentEntityWithEnvironmentAccounts envWithAccounts) {
 
     Map<Boolean, List<EnvironmentAccount>> partitionedEnvAccounts =
         envWithAccounts.getEnvironmentAccounts().stream()
@@ -557,23 +561,25 @@ public class EnvironmentBusiness {
                                     .build())
                             .isEmpty()));
     // Mark env accounts without clusters as success
-    // TODO AKSHAY release lock if no message in sqs
+    List<Completable> sqsCompletables =
+        partitionedEnvAccounts.get(false).stream()
+            .map(
+                environmentAccount ->
+                    this.pushToSqs(
+                        envWithAccounts.getEnvironment().name(),
+                        environmentAccount.accountData().getJsonObject("account"),
+                        environmentAccount.id(),
+                        Action.DELETE_ENVIRONMENT,
+                        envWithAccounts.getEnvironment().orgId()))
+            .toList();
     return this.environmentDao
         .updateEnvironmentAccountStatusByIds(
             partitionedEnvAccounts.get(true).stream().map(EnvironmentAccount::id).toList(),
             TaskStatus.SUCCESSFUL)
         .andThen(
-            Completable.mergeDelayError(
-                partitionedEnvAccounts.get(false).stream()
-                    .map(
-                        environmentAccount ->
-                            this.pushToSqs(
-                                envWithAccounts.getEnvironment().name(),
-                                environmentAccount.accountData(),
-                                environmentAccount.id(),
-                                Action.DELETE_ENVIRONMENT,
-                                envWithAccounts.getEnvironment().orgId()))
-                    .toList()))
-        .andThen(this.waitForDeleteEnvStatusUpdate(envWithAccounts.getEnvironment().id()));
+            sqsCompletables.isEmpty()
+                ? this.lockDao.releaseEnvironmentExclusiveLock(
+                    envWithAccounts.getEnvironment().id())
+                : Completable.mergeDelayError(sqsCompletables));
   }
 }

@@ -38,6 +38,11 @@ public class MysqlQuery {
   public static final UnaryOperator<String> GET_ENVIRONMENT_WITH_ACCOUNTS =
       query -> GET_ENVIRONMENTS_WITH_ACCOUNTS_BASE + query + EOL;
 
+  public static final String GET_ENVIRONMENT_ID_FROM_ENVIRONMENT_ACCOUNT =
+      """
+    SELECT environment_id FROM environment_account WHERE id=?;
+  """;
+
   public static final String CREATE_ENVIRONMENT =
       """
     INSERT INTO environment(created_by, org_id, name, updated_by) VALUES (?,?,?,?);
@@ -55,10 +60,9 @@ public class MysqlQuery {
       WHERE execution_id = ? AND payload ->> '$.body.account.name' = ?;
   """;
 
-  public static final String UPDATE_ENVIRONMENT_ACTIVE_STATUS =
+  public static final String UPDATE_ENVIRONMENT_AS_INACTIVE =
       """
-  UPDATE environment SET is_active = 0
-  WHERE id = (SELECT environment_id FROM environment_account WHERE environment_account.id = ? AND action = ? AND environment_account.status = ?);
+  UPDATE environment SET is_active = 0 WHERE id = ?;
   """;
 
   public static final String UPDATE_ENVIRONMENT_ACCOUNTS =
@@ -413,20 +417,19 @@ INSERT INTO environment_service_component
       "INSERT IGNORE INTO environment_lock (environment_id, created_by, updated_by) VALUES (?, ?, ?);";
 
   public static final String ACQUIRE_ENVIRONMENT_SHARED =
-      "UPDATE environment_lock SET shared_count = shared_count + 1, updated_at = NOW() "
+      "UPDATE environment_lock SET shared_count = shared_count + 1 "
           + "WHERE environment_id = ? AND exclusive = 0;";
 
   public static final String RELEASE_ENVIRONMENT_SHARED =
-      "UPDATE environment_lock SET shared_count = GREATEST(shared_count - 1, 0), updated_at = NOW() "
+      "UPDATE environment_lock SET shared_count = GREATEST(shared_count - 1, 0) "
           + "WHERE environment_id = ?;";
 
   public static final String ACQUIRE_ENVIRONMENT_EXCLUSIVE =
-      "UPDATE environment_lock SET exclusive = 1, updated_at = NOW() "
+      "UPDATE environment_lock SET exclusive = 1 "
           + "WHERE environment_id = ? AND exclusive = 0 AND shared_count = 0;";
 
   public static final String RELEASE_ENVIRONMENT_EXCLUSIVE =
-      "UPDATE environment_lock SET exclusive = 0, updated_at = NOW() "
-          + "WHERE environment_id = (SELECT environment_id FROM environment_account where id=?) AND exclusive = 1;";
+      "UPDATE environment_lock SET exclusive = 0 WHERE environment_id = ? AND exclusive = 1;";
 
   public static final String CREATE_ENVIRONMENT_SERVICE_LOCK_IF_ABSENT =
       "INSERT IGNORE INTO environment_service_lock (environment_id, environment_service_id, created_by, updated_by) VALUES (?, ?, ?, ?);";

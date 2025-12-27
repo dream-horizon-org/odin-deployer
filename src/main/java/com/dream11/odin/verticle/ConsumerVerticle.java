@@ -15,6 +15,7 @@ import com.dream11.odin.injector.GuiceInjector;
 import com.dream11.odin.service.responseprocessor.NamespaceResponseProcessor;
 import com.dream11.odin.service.responseprocessor.ResponseProcessor;
 import com.dream11.odin.service.responseprocessor.ServiceResponseProcessor;
+import com.dream11.odin.util.ApplicationUtil;
 import com.dream11.odin.util.ContextUtil;
 import com.dream11.odin.util.SharedDataUtil;
 import com.dream11.odin.util.SingleUtil;
@@ -76,6 +77,7 @@ public class ConsumerVerticle extends AbstractVerticle {
         this.classInjector
             .getInstance(ObjectMapper.class)
             .readValue(message.getBody(), ResponseMessage.class);
+    ApplicationUtil.validate(responseMessage);
     return this.getProcessor(responseMessage.getType())
         .process(responseMessage)
         .andThen(

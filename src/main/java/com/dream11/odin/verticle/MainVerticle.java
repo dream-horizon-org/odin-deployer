@@ -26,8 +26,7 @@ public class MainVerticle extends AbstractVerticle {
             new Deployable(
                 Constants.GRPC_VERTICLE,
                 new DeploymentOptions().setInstances(this.getNumOfCores())),
-            //            new Deployable(Constants.CONSUMER_VERTICLE, new
-            // DeploymentOptions().setInstances(2)),
+            new Deployable(Constants.CONSUMER_VERTICLE, new DeploymentOptions().setInstances(2)),
             new Deployable(
                 Constants.REST_VERTICLE,
                 new DeploymentOptions().setInstances(this.getNumOfCores())));

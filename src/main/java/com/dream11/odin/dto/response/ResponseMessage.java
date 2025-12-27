@@ -1,8 +1,11 @@
 package com.dream11.odin.dto.response;
 
 import com.dream11.odin.constant.TaskStatus;
-import java.util.HashMap;
-import java.util.Map;
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -15,10 +18,22 @@ import lombok.ToString;
 @ToString
 @Builder
 public class ResponseMessage {
-  Long id;
-  ResponseMessageType type;
-  String executionId;
-  TaskStatus status;
+  @NotNull Long id;
+  @NotNull ResponseMessageType type;
+  @NotBlank String executionId;
+  @NotNull TaskStatus status;
   String error;
-  Map<String, Object> data = new HashMap<>();
+
+  @JsonTypeInfo(
+      use = JsonTypeInfo.Id.NAME,
+      include = JsonTypeInfo.As.EXTERNAL_PROPERTY,
+      property = "type")
+  @JsonSubTypes({
+    @JsonSubTypes.Type(value = NamespaceResponseData.class, name = "NAMESPACE"),
+    @JsonSubTypes.Type(value = ServiceResponseData.class, name = "COMPONENT_STATUS"),
+    @JsonSubTypes.Type(value = ServiceResponseData.class, name = "SERVICE_STATUS")
+  })
+  @NotNull
+  @Valid
+  ResponseData data;
 }

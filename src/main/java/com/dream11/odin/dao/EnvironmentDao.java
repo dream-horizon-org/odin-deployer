@@ -25,10 +25,11 @@ import static com.dream11.odin.dao.query.MysqlQuery.BY_USER;
 import static com.dream11.odin.dao.query.MysqlQuery.CREATE_ENVIRONMENT;
 import static com.dream11.odin.dao.query.MysqlQuery.CREATE_ENVIRONMENT_ACCOUNT;
 import static com.dream11.odin.dao.query.MysqlQuery.GET_ACTIVE_ENVIRONMENT_WITH_ACCOUNTS_FOR_ORG;
+import static com.dream11.odin.dao.query.MysqlQuery.GET_ENVIRONMENT_ID_FROM_ENVIRONMENT_ACCOUNT;
 import static com.dream11.odin.dao.query.MysqlQuery.GET_ENVIRONMENT_SERVICES;
 import static com.dream11.odin.dao.query.MysqlQuery.GET_ENVIRONMENT_WITH_ACCOUNTS;
 import static com.dream11.odin.dao.query.MysqlQuery.UPDATE_ENVIRONMENT_ACCOUNT_STATUS;
-import static com.dream11.odin.dao.query.MysqlQuery.UPDATE_ENVIRONMENT_ACTIVE_STATUS;
+import static com.dream11.odin.dao.query.MysqlQuery.UPDATE_ENVIRONMENT_AS_INACTIVE;
 import static com.dream11.odin.dao.query.MysqlQuery.UPDATE_ENVIRONMENT_EXECUTION_TASK;
 
 import com.dream11.grpc.util.ExceptionUtil;
@@ -175,7 +176,7 @@ public class EnvironmentDao {
     return mysqlClient
         .getMasterClient()
         .preparedQuery(UPDATE_ENVIRONMENT_EXECUTION_TASK)
-        .rxExecute(Tuple.of(params))
+        .rxExecute(Tuple.wrap(params))
         .map(
             updateResult -> {
               if (updateResult.rowCount() == 0) {
@@ -190,15 +191,11 @@ public class EnvironmentDao {
         .ignoreElement();
   }
 
-  public Completable setEnvironmentInActiveForDeleteEnvironment(long environmentAccountId) {
+  public Completable updateEnvironmentAsInactive(long envId) {
     return mysqlClient
         .getMasterClient()
-        .preparedQuery(UPDATE_ENVIRONMENT_ACTIVE_STATUS)
-        .rxExecute(
-            Tuple.of(
-                environmentAccountId,
-                Action.DELETE_ENVIRONMENT.getName(),
-                TaskStatus.SUCCESSFUL.getValue()))
+        .preparedQuery(UPDATE_ENVIRONMENT_AS_INACTIVE)
+        .rxExecute(Tuple.of(envId))
         .ignoreElement();
   }
 
@@ -307,6 +304,19 @@ public class EnvironmentDao {
         .switchIfEmpty(
             Single.error(ExceptionUtil.getException(OdinError.ENV_DOES_NOT_EXIST, envId)))
         .map(this::buildEnvironmentWithAccounts);
+  }
+
+  public Single<Long> getEnvironmentIdFromEnvironmentAccountId(long environmentAccountId) {
+    return this.mysqlClient
+        .getSlaveClient()
+        .preparedQuery(GET_ENVIRONMENT_ID_FROM_ENVIRONMENT_ACCOUNT)
+        .rxExecute(Tuple.of(environmentAccountId))
+        .filter(rowSet -> rowSet.size() > 0)
+        .switchIfEmpty(
+            Single.error(
+                ExceptionUtil.getException(
+                    OdinError.ENV_ACCOUNT_DOES_NOT_EXIST, environmentAccountId)))
+        .map(rows -> rows.iterator().next().getLong(COL_ENVIRONMENT_ID));
   }
 
   public Single<List<EnvironmentServiceEntity>> getEnvironmentServices(long envId) {

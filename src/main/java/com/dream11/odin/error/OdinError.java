@@ -145,7 +145,10 @@ public enum OdinError implements GrpcError {
       "OD233", "Failed to %s, another operation is in progress", Code.INVALID_ARGUMENT),
   NO_ROWS_UPDATED("OD235", "No rows were updated. Details: table: %s, params:%s", Code.INTERNAL),
   INVALID_NAMESPACE_RESPONSE_DATA(
-      "OD235", "Invalid namespace response data. Error: %s", Code.INTERNAL);
+      "OD235", "Invalid namespace response data. Error: %s", Code.INTERNAL),
+  ENV_ACCOUNT_DOES_NOT_EXIST(
+      "OD236", "Environment account with id:%s does not exist", Code.NOT_FOUND),
+  ;
 
   private final String errorCode;
   private final String errorMessage;

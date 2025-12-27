@@ -4,6 +4,7 @@ import com.dream11.grpc.util.ExceptionUtil;
 import com.dream11.odin.dao.*;
 import com.dream11.odin.dto.response.ResponseMessage;
 import com.dream11.odin.dto.response.ResponseMessageType;
+import com.dream11.odin.dto.response.ServiceResponseData;
 import com.dream11.odin.error.OdinError;
 import com.google.inject.Inject;
 import io.reactivex.Completable;
@@ -18,10 +19,7 @@ public class ServiceResponseProcessor implements ResponseProcessor {
   @Override
   public Completable process(ResponseMessage responseMessage) {
     log.info("Received message: {}", responseMessage.toString());
-    if (!responseMessage.getData().isEmpty()) {
-      return this.handleResponse(responseMessage);
-    }
-    return Completable.error(ExceptionUtil.getException(OdinError.INTERNAL_SERVER_ERROR));
+    return this.handleResponse(responseMessage);
   }
 
   private Completable handleResponse(ResponseMessage responseMessage) {
@@ -32,7 +30,7 @@ public class ServiceResponseProcessor implements ResponseProcessor {
       return this.serviceComponentDao.updateEnvironmentServiceComponentStatus(
           responseMessage.getStatus().getValue(),
           responseMessage.getId(),
-          responseMessage.getData().get("componentName").toString());
+          ((ServiceResponseData) responseMessage.getData()).getComponentName());
     }
     return Completable.error(ExceptionUtil.getException(OdinError.INTERNAL_SERVER_ERROR));
   }
