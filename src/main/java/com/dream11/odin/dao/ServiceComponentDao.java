@@ -18,7 +18,14 @@ import static com.dream11.odin.constant.Constants.COL_SERVICE_NAME;
 import static com.dream11.odin.constant.Constants.COL_SERVICE_STATUS;
 import static com.dream11.odin.constant.Constants.COL_SERVICE_UPDATED_AT;
 import static com.dream11.odin.constant.Constants.COL_SERVICE_UPDATED_BY;
-import static com.dream11.odin.dao.query.MysqlQuery.*;
+import static com.dream11.odin.dao.query.MysqlQuery.EOL;
+import static com.dream11.odin.dao.query.MysqlQuery.GET_ENVIRONMENT_SERVICE_COMPONENT;
+import static com.dream11.odin.dao.query.MysqlQuery.GET_ENVIRONMENT_SERVICE_COMPONENTS;
+import static com.dream11.odin.dao.query.MysqlQuery.GET_ENVIRONMENT_SERVICE_ID;
+import static com.dream11.odin.dao.query.MysqlQuery.UPDATE_ENVIRONMENT_SERVICE_COMPONENT_STATUS;
+import static com.dream11.odin.dao.query.MysqlQuery.UPDATE_ENVIRONMENT_SERVICE_STATUS;
+import static com.dream11.odin.dao.query.MysqlQuery.UPSERT_ENVIRONMENT_SERVICE;
+import static com.dream11.odin.dao.query.MysqlQuery.UPSERT_ENVIRONMENT_SERVICE_COMPONENT;
 import static com.dream11.odin.error.OdinError.INTERNAL_SERVER_ERROR;
 import static com.dream11.odin.error.OdinError.SERVICE_DOES_NOT_EXIST_IN_ENV;
 

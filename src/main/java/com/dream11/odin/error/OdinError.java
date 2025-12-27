@@ -142,7 +142,10 @@ public enum OdinError implements GrpcError {
 
   FAILED_TO_ACQUIRE_LOCK("OD232", "Failed to acquire lock on %s", Code.INVALID_ARGUMENT),
   ANOTHER_OPERATION_IN_PROGRESS(
-      "OD233", "Failed to %s, another operation is in progress", Code.INVALID_ARGUMENT);
+      "OD233", "Failed to %s, another operation is in progress", Code.INVALID_ARGUMENT),
+  NO_ROWS_UPDATED("OD235", "No rows were updated. Details: table: %s, params:%s", Code.INTERNAL),
+  INVALID_NAMESPACE_RESPONSE_DATA(
+      "OD235", "Invalid namespace response data. Error: %s", Code.INTERNAL);
 
   private final String errorCode;
   private final String errorMessage;

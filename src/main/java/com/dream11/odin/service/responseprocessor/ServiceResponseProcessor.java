@@ -17,18 +17,19 @@ public class ServiceResponseProcessor implements ResponseProcessor {
 
   @Override
   public Completable process(ResponseMessage responseMessage) {
-    log.info(responseMessage.toString());
-    if (responseMessage.getData() != null && !responseMessage.getData().isEmpty())
-      return handleResponse(responseMessage);
-    else return Completable.error(ExceptionUtil.getException(OdinError.INTERNAL_SERVER_ERROR));
+    log.info("Received message: {}", responseMessage.toString());
+    if (!responseMessage.getData().isEmpty()) {
+      return this.handleResponse(responseMessage);
+    }
+    return Completable.error(ExceptionUtil.getException(OdinError.INTERNAL_SERVER_ERROR));
   }
 
   private Completable handleResponse(ResponseMessage responseMessage) {
     if (responseMessage.getType().equals(ResponseMessageType.SERVICE_STATUS)) {
-      return serviceComponentDao.updateEnvironmentServiceStatus(
+      return this.serviceComponentDao.updateEnvironmentServiceStatus(
           responseMessage.getStatus().getValue(), responseMessage.getId());
     } else if (responseMessage.getType().equals(ResponseMessageType.COMPONENT_STATUS)) {
-      return serviceComponentDao.updateEnvironmentServiceComponentStatus(
+      return this.serviceComponentDao.updateEnvironmentServiceComponentStatus(
           responseMessage.getStatus().getValue(),
           responseMessage.getId(),
           responseMessage.getData().get("componentName").toString());

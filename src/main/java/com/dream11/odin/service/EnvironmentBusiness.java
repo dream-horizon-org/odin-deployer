@@ -19,8 +19,7 @@ import com.dream11.odin.dao.ServiceComponentDao;
 import com.dream11.odin.dao.TransactionDao;
 import com.dream11.odin.dto.RequestMetaContext;
 import com.dream11.odin.dto.UserDetails;
-import com.dream11.odin.dto.constants.RequestMessageType;
-import com.dream11.odin.dto.request.RequestMessage;
+import com.dream11.odin.dto.request.NamespaceRequestMessage;
 import com.dream11.odin.dto.v1.Component;
 import com.dream11.odin.dto.v1.Environment;
 import com.dream11.odin.dto.v1.EnvironmentSummary;
@@ -421,12 +420,11 @@ public class EnvironmentBusiness {
       Action environmentAction,
       Long orgId) {
     String message =
-        new RequestMessage(
+        new NamespaceRequestMessage(
                 environmentName,
                 accountData,
                 environmentAction,
                 environmentAccountId,
-                RequestMessageType.NAMESPACE,
                 orgId,
                 ApplicationContext.getTraceId())
             .createRequest()

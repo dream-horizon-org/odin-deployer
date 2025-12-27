@@ -6,26 +6,25 @@ import io.vertx.core.json.JsonObject;
 import lombok.RequiredArgsConstructor;
 
 @RequiredArgsConstructor
-public class RequestMessage {
+public class NamespaceRequestMessage {
   final String environmentName;
   final JsonObject accountData;
   final Action environmentAction;
-  final long taskId;
-  final RequestMessageType requestMessageType;
+  final long environmentAccountId;
   final Long orgId;
   final String traceId;
 
   public JsonObject createRequest() {
     JsonObject body =
-        new JsonObject()
-            .put("name", environmentName)
-            .put("action", environmentAction)
-            .put("account", accountData)
-            .put("orgId", orgId);
-    return new JsonObject()
-        .put("id", taskId)
-        .put("type", requestMessageType)
-        .put("body", body)
-        .put("traceId", traceId);
+        JsonObject.of(
+            "name", environmentName,
+            "action", environmentAction,
+            "account", accountData,
+            "orgId", orgId);
+    return JsonObject.of(
+        "id", environmentAccountId,
+        "type", RequestMessageType.NAMESPACE,
+        "body", body,
+        "traceId", traceId);
   }
 }

@@ -49,10 +49,10 @@ public class MysqlQuery {
     VALUES (?,?,?,?,?,?,?);
   """;
 
-  public static final String UPDATE_EXECUTION_TASK =
+  public static final String UPDATE_ENVIRONMENT_EXECUTION_TASK =
       """
-      UPDATE execution_tasksSET status = ?, response = CAST(? AS JSON)
-      WHERE execution_id = ?;
+      UPDATE execution_tasks SET status = ?, response = ?
+      WHERE execution_id = ? AND payload ->> '$.body.account.name' = ?;
   """;
 
   public static final String UPDATE_ENVIRONMENT_ACTIVE_STATUS =
@@ -118,6 +118,13 @@ public class MysqlQuery {
       GET_ENVIRONMENT_SERVICE_COMPONENTS + " AND esc.name=?;";
 
   // TODO AKSHAY Review and delete below this
+
+  public static final String UPDATE_EXECUTION_TASK =
+      """
+      UPDATE execution_tasks SET status = ?, response = CAST(? AS JSON)
+      WHERE execution_id = ?;
+  """;
+
   private static final String SELECT_SERVICE_TASK_FIELDS =
       "SELECT service_task.id AS id, env_id, service_task.name, service_version, "
           + "config, service_config_hash, action.name AS actions, status, service_task.version, "

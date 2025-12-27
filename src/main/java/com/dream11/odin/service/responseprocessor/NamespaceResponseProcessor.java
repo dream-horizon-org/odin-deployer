@@ -1,8 +1,10 @@
 package com.dream11.odin.service.responseprocessor;
 
+import com.dream11.grpc.util.ExceptionUtil;
 import com.dream11.odin.dao.EnvironmentDao;
 import com.dream11.odin.dao.LockDao;
 import com.dream11.odin.dto.response.ResponseMessage;
+import com.dream11.odin.error.OdinError;
 import com.google.inject.Inject;
 import io.reactivex.Completable;
 import lombok.RequiredArgsConstructor;
@@ -17,14 +19,22 @@ public class NamespaceResponseProcessor implements ResponseProcessor {
 
   @Override
   public Completable process(ResponseMessage message) {
-    // TODO update status for only target environment account
+    if (!message.getData().containsKey("accountName")) {
+      return Completable.error(
+          ExceptionUtil.getException(
+              OdinError.INVALID_NAMESPACE_RESPONSE_DATA, "accountName not found"));
+    }
     return this.environmentDao
-        .updateExecutionStatus(message)
+        .updateExecutionStatus(
+            message.getExecutionId(),
+            message.getData().get("accountName").toString(),
+            message.getStatus(),
+            message.toString())
         .andThen(
             this.environmentDao.updateEnvironmentAccountStatus(
                 message.getId(), message.getStatus()))
         .andThen(
-            this.environmentDao.setEnvironmentInActiveForDeleteEnvironmentTask(
+            this.environmentDao.setEnvironmentInActiveForDeleteEnvironment(
                 message.getId())) // TODO why is this needed
         .andThen(this.lockDao.releaseEnvironmentExclusiveLock(message.getId()));
   }

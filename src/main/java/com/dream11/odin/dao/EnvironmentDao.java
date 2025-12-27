@@ -29,15 +29,13 @@ import static com.dream11.odin.dao.query.MysqlQuery.GET_ENVIRONMENT_SERVICES;
 import static com.dream11.odin.dao.query.MysqlQuery.GET_ENVIRONMENT_WITH_ACCOUNTS;
 import static com.dream11.odin.dao.query.MysqlQuery.UPDATE_ENVIRONMENT_ACCOUNT_STATUS;
 import static com.dream11.odin.dao.query.MysqlQuery.UPDATE_ENVIRONMENT_ACTIVE_STATUS;
-import static com.dream11.odin.dao.query.MysqlQuery.UPDATE_EXECUTION_TASK;
+import static com.dream11.odin.dao.query.MysqlQuery.UPDATE_ENVIRONMENT_EXECUTION_TASK;
 
-import com.dream11.grpc.error.GrpcException;
 import com.dream11.grpc.util.ExceptionUtil;
 import com.dream11.odin.client.MysqlClient;
 import com.dream11.odin.constant.Action;
 import com.dream11.odin.constant.TaskStatus;
 import com.dream11.odin.dao.query.MysqlQuery;
-import com.dream11.odin.dto.response.ResponseMessage;
 import com.dream11.odin.entity.EnvironmentAccount;
 import com.dream11.odin.entity.EnvironmentEntity;
 import com.dream11.odin.entity.EnvironmentEntityWithEnvironmentAccounts;
@@ -171,21 +169,28 @@ public class EnvironmentDao {
         .map(result -> result.property(MySQLClient.LAST_INSERTED_ID));
   }
 
-  public Completable updateExecutionStatus(ResponseMessage message) {
-    // TODO AKSHAY: Update status for each execution task based on message
-    Object[] params = {
-      message.getStatus(),
-      new JsonObject().put("response", message.toString()).toString(),
-      message.getExecutionId(),
-    };
+  public Completable updateExecutionStatus(
+      String executionId, String accountName, TaskStatus status, String responseString) {
+    Object[] params = {status, JsonObject.of("response", responseString), executionId, accountName};
     return mysqlClient
         .getMasterClient()
-        .preparedQuery(UPDATE_EXECUTION_TASK)
-        .rxExecute(Tuple.wrap(params))
+        .preparedQuery(UPDATE_ENVIRONMENT_EXECUTION_TASK)
+        .rxExecute(Tuple.of(params))
+        .map(
+            updateResult -> {
+              if (updateResult.rowCount() == 0) {
+                log.error("No rows updated for environment execution task: {}", executionId);
+                throw ExceptionUtil.getException(
+                    OdinError.NO_ROWS_UPDATED,
+                    "execution_task",
+                    String.join(",", executionId, accountName));
+              }
+              return updateResult;
+            })
         .ignoreElement();
   }
 
-  public Completable setEnvironmentInActiveForDeleteEnvironmentTask(long environmentAccountId) {
+  public Completable setEnvironmentInActiveForDeleteEnvironment(long environmentAccountId) {
     return mysqlClient
         .getMasterClient()
         .preparedQuery(UPDATE_ENVIRONMENT_ACTIVE_STATUS)
@@ -331,7 +336,6 @@ public class EnvironmentDao {
         .toList();
   }
 
-  // TODO AKSHAY Delete below this
   public Completable updateEnvironmentAccountStatus(long id, TaskStatus status) {
     return mysqlClient
         .getMasterClient()
@@ -340,8 +344,9 @@ public class EnvironmentDao {
         .map(
             updateResult -> {
               if (updateResult.rowCount() == 0) {
-                log.error("Update failed for environment account: {}", id);
-                throw new GrpcException(OdinError.INTERNAL_SERVER_ERROR);
+                log.error("No rows updated for environment account: {}", id);
+                throw ExceptionUtil.getException(
+                    OdinError.NO_ROWS_UPDATED, "environment_account", id);
               }
               return updateResult;
             })
