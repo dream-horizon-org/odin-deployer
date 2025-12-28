@@ -14,8 +14,7 @@ public enum OdinError implements GrpcError {
   INVALID_USER_LOGIN("OD102", "Access Denied", Code.PERMISSION_DENIED),
   ENV_NAME_MISSING("OD103", "Please provide env_name param", Code.INVALID_ARGUMENT),
   ENV_DOES_NOT_EXIST("OD104", "Environment with name:%s does not exist", Code.NOT_FOUND),
-  SERVICE_DOES_NOT_EXIST_IN_ENV(
-      "OD105", "Service with name:%s does not exist in env:%s", Code.NOT_FOUND),
+  SERVICE_DOES_NOT_EXIST("OD105", "Service with name:%s does not exist", Code.NOT_FOUND),
   COMPONENT_DOES_NOT_EXIST_IN_SERVICE(
       "OD106", "Component with name:%s does not exist in service:%s", Code.NOT_FOUND),
   PROVIDE_BOTH_SERVICE_AND_COMPONENT(
@@ -147,8 +146,7 @@ public enum OdinError implements GrpcError {
   INVALID_NAMESPACE_RESPONSE_DATA(
       "OD235", "Invalid namespace response data. Error: %s", Code.INTERNAL),
   ENV_ACCOUNT_DOES_NOT_EXIST(
-      "OD236", "Environment account with id:%s does not exist", Code.NOT_FOUND),
-  ;
+      "OD236", "Environment account with id:%s does not exist", Code.NOT_FOUND);
 
   private final String errorCode;
   private final String errorMessage;

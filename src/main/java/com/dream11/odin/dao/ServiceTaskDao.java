@@ -160,80 +160,6 @@ public class ServiceTaskDao {
         .compose(RxJavaUtil.applyDebugLogs(log));
   }
 
-  public Maybe<ServiceTaskEntity> getLatestCompletedServiceTask(Long envId, String serviceName) {
-    return mysqlClient
-        .getSlaveClient()
-        .preparedQuery(GET_LATEST_COMPLETED_SERVICE_TASK)
-        .rxExecute(Tuple.of(envId, serviceName))
-        .map(
-            rows ->
-                StreamSupport.stream(
-                        Spliterators.spliteratorUnknownSize(rows.iterator(), Spliterator.ORDERED),
-                        false)
-                    .map(
-                        row -> {
-                          log.info(
-                              "Found service task entity for env {} and service {}",
-                              envId,
-                              serviceName);
-                          return ServiceTaskEntity.builder()
-                              .id(row.getLong("id"))
-                              .actions(Action.valueOf(row.getString(Constants.COL_ACTIONS)))
-                              .config(row.getJsonObject(Constants.COL_CONFIG))
-                              .serviceConfigHash(row.getString(Constants.COL_SERVICE_CONFIG_HASH))
-                              .envId(envId)
-                              .name(row.getString("name"))
-                              .serviceVersion(row.getString(Constants.COL_SERVICE_VERSION))
-                              .status(TaskStatus.valueOf(row.getString(STATUS)))
-                              .createdBy(row.getString(Constants.COL_CREATED_BY))
-                              .updatedBy(row.getString(Constants.COL_UPDATED_BY))
-                              .version(row.getInteger(Constants.COL_VERSION))
-                              .build();
-                        })
-                    .toList())
-        .filter(serviceTaskEntities -> serviceTaskEntities.size() == 1)
-        .map(serviceTaskEntities -> serviceTaskEntities.get(0))
-        .compose(RxJavaUtil.applyDebugLogs(log));
-  }
-
-  public Maybe<ServiceTaskEntity> getLatestCompletedServiceTask(
-      String serviceName, String envName, Long orgId) {
-    return mysqlClient
-        .getSlaveClient()
-        .preparedQuery(GET_LATEST_SERVICE_TASK_FROM_ENV_AND_ORG)
-        .rxExecute(Tuple.of(envName, orgId, serviceName))
-        .map(
-            rows ->
-                StreamSupport.stream(
-                        Spliterators.spliteratorUnknownSize(rows.iterator(), Spliterator.ORDERED),
-                        false)
-                    .map(
-                        row -> {
-                          log.info(
-                              "Found service task entity for env {}, service {} and org {}",
-                              envName,
-                              serviceName,
-                              orgId);
-                          return ServiceTaskEntity.builder()
-                              .id(row.getLong("id"))
-                              .actions(Action.valueOf(row.getString(Constants.COL_ACTIONS)))
-                              .config(row.getJsonObject(Constants.COL_CONFIG))
-                              .serviceConfigHash(row.getString(Constants.COL_SERVICE_CONFIG_HASH))
-                              .envId(row.getLong("env_id"))
-                              .name(row.getString("name"))
-                              .serviceVersion(row.getString(Constants.COL_SERVICE_VERSION))
-                              .status(TaskStatus.valueOf(row.getString(STATUS)))
-                              .createdBy(row.getString(Constants.COL_CREATED_BY))
-                              .updatedBy(row.getString(Constants.COL_UPDATED_BY))
-                              .version(row.getInteger(Constants.COL_VERSION))
-                              .build();
-                        })
-                    .toList())
-        .filter(serviceTaskEntities -> serviceTaskEntities.size() == 1)
-        .map(serviceTaskEntities -> serviceTaskEntities.get(0))
-        .compose(RxJavaUtil.applyDebugLogs(log));
-  }
-
   public Single<ServiceTaskEntity> createServiceTask(
       SqlConnection sqlConnection, ServiceTaskEntity serviceTaskEntity) {
 
@@ -272,25 +198,6 @@ public class ServiceTaskDao {
         .compose(SingleUtil.applyDebugLogs(log));
   }
 
-  public Single<ServiceTaskEntity> updateServiceTaskByDeploymentId(
-      ServiceTaskEntity serviceTaskEntity) {
-
-    Object[] params = {serviceTaskEntity.getStatus(), serviceTaskEntity.getId()};
-
-    return mysqlClient
-        .getMasterClient()
-        .preparedQuery(UPDATE_SERVICE_TASK_STATUS)
-        .rxExecute(Tuple.wrap(params))
-        .map(result -> serviceTaskEntity)
-        .doOnSuccess(
-            createdServiceTaskEntity ->
-                log.info(
-                    "Service task entity {} updated successfully with status {}",
-                    createdServiceTaskEntity.getId(),
-                    createdServiceTaskEntity.getStatus()))
-        .compose(SingleUtil.applyDebugLogs(log));
-  }
-
   public Single<Pair<Action, TaskStatus>> getServiceStatusExcludingHealthcheck(
       String serviceName, long envId) {
     return mysqlClient
@@ -306,7 +213,7 @@ public class ServiceTaskDao {
                     TaskStatus.valueOf(row.getString(STATUS)));
               } else
                 throw ExceptionUtil.getException(
-                    OdinError.SERVICE_DOES_NOT_EXIST_IN_ENV, serviceName, envId);
+                    OdinError.SERVICE_DOES_NOT_EXIST, serviceName, envId);
             })
         .compose(SingleUtil.applyDebugLogs(log));
   }

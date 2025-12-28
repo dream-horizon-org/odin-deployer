@@ -1,25 +1,19 @@
 package com.dream11.odin.service;
 
-import static com.dream11.odin.constant.Constants.COMPONENT_CONFIG_KEY;
-import static com.dream11.odin.constant.Constants.PROVISIONING_CONFIG_KEY;
-
 import com.dream11.grpc.error.GrpcException;
 import com.dream11.grpc.util.ExceptionUtil;
 import com.dream11.odin.ApplicationContext;
-import com.dream11.odin.client.MysqlClient;
 import com.dream11.odin.constant.Action;
 import com.dream11.odin.constant.Constants;
 import com.dream11.odin.constant.ExecTaskType;
 import com.dream11.odin.constant.ServiceOperations;
 import com.dream11.odin.constant.TaskStatus;
 import com.dream11.odin.dao.ComponentTaskDao;
-import com.dream11.odin.dao.ComponentValidateTaskDao;
 import com.dream11.odin.dao.EnvironmentDao;
 import com.dream11.odin.dao.ExecutionTaskDao;
 import com.dream11.odin.dao.LockDao;
 import com.dream11.odin.dao.ServiceComponentDao;
 import com.dream11.odin.dao.ServiceTaskDao;
-import com.dream11.odin.dao.ServiceValidateTaskDao;
 import com.dream11.odin.dao.TransactionDao;
 import com.dream11.odin.dto.ComponentData;
 import com.dream11.odin.dto.ComponentIdentifier;
@@ -36,10 +30,8 @@ import com.dream11.odin.dto.v1.ComponentProvisioningConfig;
 import com.dream11.odin.dto.v1.Environment;
 import com.dream11.odin.dto.v1.ProvisioningConfig;
 import com.dream11.odin.dto.v1.ServiceDefinition;
-import com.dream11.odin.dto.v1.ServiceTask;
 import com.dream11.odin.entity.ComponentEntity;
 import com.dream11.odin.entity.ComponentTaskEntity;
-import com.dream11.odin.entity.ComponentValidateTaskEntity;
 import com.dream11.odin.entity.EnvironmentEntity;
 import com.dream11.odin.entity.EnvironmentEntityWithEnvironmentAccounts;
 import com.dream11.odin.entity.EnvironmentServiceEntity;
@@ -47,8 +39,6 @@ import com.dream11.odin.entity.EnvironmentServiceEntityWithComponents;
 import com.dream11.odin.entity.ServiceTaskEntity;
 import com.dream11.odin.error.OdinError;
 import com.dream11.odin.error.OdinRestError;
-import com.dream11.odin.grpc.environment.DeployedServiceStatus;
-import com.dream11.odin.grpc.environment.StatusEnvComponentStatus;
 import com.dream11.odin.grpc.service.DeployServiceRequest;
 import com.dream11.odin.grpc.service.DeployServiceResponse;
 import com.dream11.odin.grpc.service.OperateServiceRequest;
@@ -64,7 +54,6 @@ import com.dream11.odin.service.operation.ComponentOperation;
 import com.dream11.odin.service.operation.Operation;
 import com.dream11.odin.service.operation.RemoveComponentServiceOperation;
 import com.dream11.odin.util.AccountUtils;
-import com.dream11.odin.util.ActionUtil;
 import com.dream11.odin.util.ComponentUtil;
 import com.dream11.odin.util.ErrorMapperUtil;
 import com.dream11.odin.util.JsonUtil;
@@ -85,15 +74,11 @@ import io.reactivex.Completable;
 import io.reactivex.Flowable;
 import io.reactivex.Maybe;
 import io.reactivex.Single;
-import io.reactivex.functions.Function;
 import io.vertx.core.json.JsonObject;
 import io.vertx.reactivex.sqlclient.SqlConnection;
 import jakarta.ws.rs.core.Response;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -117,11 +102,8 @@ public class ServiceBusiness {
 
   final ComponentTaskDao componentTaskDao;
   final DatabasePollerService databasePollerService;
-  final ComponentValidateTaskDao componentValidateTaskDao;
-  final ServiceValidateTaskDao serviceValidateTaskDao;
   final EnvironmentDao environmentDao;
   final MessageProducer<String> messageProducer;
-  final MysqlClient mysqlClient;
   final ServiceTaskDao serviceTaskDao;
   final LockDao lockDao;
   final PlaceholderService placeholderService;
@@ -304,9 +286,9 @@ public class ServiceBusiness {
   private JsonObject buildComponentConfig(ComponentData componentData) {
     return JsonObject.of(
         "componentConfig",
-        componentData.getComponentDefinition(),
+        JsonUtil.getJsonFromProto(componentData.getComponentDefinition()),
         "provisioningConfig",
-        componentData.getComponentProvisioningConfig());
+        JsonUtil.getJsonFromProto(componentData.getComponentProvisioningConfig()));
   }
 
   private EnvironmentServiceEntityWithComponents buildEnvironmentServiceEntityWithComponents(
@@ -329,15 +311,15 @@ public class ServiceBusiness {
         .components(
             componentDataMap.values().stream()
                 .<ComponentEntity>map(
-                    value ->
+                    componentData ->
                         ComponentEntity.builder()
-                            .name(value.getComponentDefinition().getName())
+                            .name(componentData.getComponentDefinition().getName())
                             .action(action)
                             .status(TaskStatus.IN_PROGRESS)
-                            .config(buildComponentConfig(value))
+                            .config(this.buildComponentConfig(componentData))
                             .accountData(
                                 JsonUtil.getJsonFromProto(
-                                    value
+                                    componentData
                                         .getEnvironmentProviderAccounts()
                                         .getServiceAccountsSnapshot()))
                             .createdBy(userDetails.getEmailId())
@@ -398,18 +380,18 @@ public class ServiceBusiness {
       Map<ComponentIdentifier, ComponentData> componentDataMap,
       Action action,
       boolean isLockRequired) {
-    return transactionDao
+    return this.transactionDao
         .executeTransaction(
             sqlConnection ->
-                serviceComponentDao
+                this.serviceComponentDao
                     .upsertEnvironmentService(
                         sqlConnection,
                         environmentId,
                         environmentServiceEntityWithComponents.getEnvironmentServiceEntity())
-                    .flatMap(
+                    .flatMapCompletable(
                         serviceId ->
                             (isLockRequired
-                                    ? acquireEnvironmentServiceLocks(
+                                    ? this.acquireEnvironmentServiceLocks(
                                         sqlConnection,
                                         environmentId,
                                         serviceId,
@@ -418,39 +400,48 @@ public class ServiceBusiness {
                                             .getCreatedBy())
                                     : Completable.complete())
                                 .andThen(
-                                    serviceComponentDao.upsertEnvironmentServiceComponents(
+                                    this.serviceComponentDao.upsertEnvironmentServiceComponents(
                                         sqlConnection,
                                         serviceId,
                                         environmentServiceEntityWithComponents.getComponents()))
                                 .andThen(
-                                    Single.just(
-                                        buildSqsMessage(
-                                                envName,
-                                                serviceName,
-                                                orgId,
-                                                serviceId,
-                                                componentDataMap,
-                                                action)
-                                            .compressMessage()))
-                                .flatMap(
-                                    compressedPayload ->
-                                        executionTaskDao
-                                            .createExecutionTask(
-                                                action.getName(),
-                                                orgId,
-                                                TaskStatus.IN_PROGRESS.getValue(),
-                                                ExecTaskType.SERVICE.getValue(),
-                                                executionId,
-                                                compressedPayload,
-                                                environmentServiceEntityWithComponents
-                                                    .getEnvironmentServiceEntity()
-                                                    .getCreatedBy())
-                                            .andThen(Single.just(compressedPayload)))
-                                .flatMap(
-                                    compressedPayload ->
-                                        SingleUtil.toSingle(
-                                            messageProducer.send(compressedPayload))))
+                                    this.createTaskAndPushToQueue(
+                                        orgId,
+                                        serviceId,
+                                        executionId,
+                                        envName,
+                                        serviceName,
+                                        componentDataMap,
+                                        action,
+                                        environmentServiceEntityWithComponents
+                                            .getEnvironmentServiceEntity()
+                                            .getCreatedBy())))
                     .toMaybe())
+        .ignoreElement();
+  }
+
+  private Completable createTaskAndPushToQueue(
+      long orgId,
+      long serviceId,
+      String executionId,
+      String environmentName,
+      String serviceName,
+      Map<ComponentIdentifier, ComponentData> componentDataMap,
+      Action action,
+      String user) {
+    ServiceRequestQueueMessage message =
+        this.buildSqsMessage(
+            environmentName, serviceName, orgId, serviceId, componentDataMap, action);
+    return this.executionTaskDao
+        .createExecutionTask(
+            action.getName(),
+            orgId,
+            TaskStatus.IN_PROGRESS.getValue(),
+            ExecTaskType.SERVICE.getValue(),
+            executionId,
+            new JsonObject(message.toJsonString()),
+            user)
+        .andThen(SingleUtil.toSingle(this.messageProducer.send(message.compressMessage())))
         .ignoreElement();
   }
 
@@ -502,193 +493,6 @@ public class ServiceBusiness {
                 return Single.error(new RestException(RestErrorEnum.UNKNOWN_EXCEPTION, throwable));
               }
             });
-  }
-
-  public Flowable<ServiceResponse> applyActionToService(
-      ServiceData serviceData,
-      Map<ComponentIdentifier, ComponentData> componentDataMap,
-      Environment environment,
-      List<ComponentAction> componentActions,
-      UserDetails userDetails,
-      Action action,
-      int prevServiceTaskEntityVersion) {
-    log.info(
-        "Applying action {} for service {} in env {} with prevServiceTaskEntityVersion {}",
-        action.getName(),
-        serviceData.getServiceDefinition().getName(),
-        environment.getName(),
-        prevServiceTaskEntityVersion);
-    return serviceTaskDao
-        .getServiceTaskByTraceIdServiceNameEnvNameAndAction(
-            ApplicationContext.getTraceId(),
-            serviceData.getServiceDefinition().getName(),
-            environment.getName())
-        .flatMapPublisher(
-            serviceTaskEntity -> {
-              log.warn(
-                  "Found service task({}) for traceId, resuming from poller. Potential issue",
-                  serviceTaskEntity.getId());
-              return databasePollerService.pollDatabase(serviceTaskEntity.getId(), Action.DEPLOY);
-            })
-        .switchIfEmpty(
-            Single.just(Pair.of(componentDataMap, componentActions))
-                .flatMapPublisher(
-                    finalComponentActions ->
-                        createServiceAndComponentTasks(
-                                serviceData,
-                                finalComponentActions.getLeft(),
-                                action,
-                                finalComponentActions.getRight(),
-                                environment,
-                                userDetails,
-                                prevServiceTaskEntityVersion)
-                            .switchIfEmpty(
-                                Single.error(new IllegalStateException("Failed to create tasks")))
-                            .toFlowable()
-                            .flatMap(
-                                componentTaskEntities -> {
-                                  ServiceRequestQueueMessage serviceRequestQueueMessage =
-                                      ServiceUtil.createPayload(
-                                          serviceData.getServiceDefinition().getName(),
-                                          environment.getName(),
-                                          finalComponentActions.getRight(),
-                                          componentTaskEntities
-                                              .get(0)
-                                              .getServiceTaskEntity()
-                                              .getId(),
-                                          userDetails.getOrgId());
-                                  log.info(
-                                      "ServiceRequestQueueMessage for deploy : {}",
-                                      serviceRequestQueueMessage.toJsonString());
-                                  // Add DEPLOY message to queue
-                                  return SingleUtil.toSingle(
-                                          messageProducer.send(
-                                              serviceRequestQueueMessage.compressMessage()))
-                                      .toFlowable()
-                                      .flatMap(
-                                          s ->
-                                              databasePollerService.pollDatabase(
-                                                  componentTaskEntities
-                                                      .get(0)
-                                                      .getServiceTaskEntity()
-                                                      .getId(),
-                                                  action));
-                                })));
-  }
-
-  protected Maybe<List<ComponentTaskEntity>> createServiceAndComponentTasks(
-      ServiceData serviceData,
-      Map<ComponentIdentifier, ComponentData> componentDataMap,
-      Action serviceAction,
-      List<ComponentAction> componentActions,
-      Environment environment,
-      UserDetails userDetails,
-      int prevServiceTaskEntityVersion) {
-    return mysqlClient
-        .getMasterClient()
-        .rxWithTransaction(
-            (Function<SqlConnection, Maybe<List<ComponentTaskEntity>>>)
-                connection ->
-                    serviceTaskDao
-                        .createServiceTask(
-                            connection,
-                            ServiceUtil.createServiceTaskEntity(
-                                serviceData,
-                                environment,
-                                serviceAction,
-                                userDetails,
-                                prevServiceTaskEntityVersion))
-                        .flatMap(
-                            serviceTaskEntity ->
-                                componentTaskDao.createComponentTasks(
-                                    connection,
-                                    ComponentUtil.createComponentTaskEntities(
-                                        componentDataMap,
-                                        serviceTaskEntity,
-                                        componentActions,
-                                        userDetails)))
-                        .toMaybe());
-  }
-
-  public Flowable<ServiceResponse> validate(
-      ServiceData serviceData,
-      Map<ComponentIdentifier, ComponentData> componentDataMap,
-      EnvironmentEntity environment,
-      UserDetails userDetails) {
-    Map<String, Object> validateStageConfig = Map.of("stageName", "deploy");
-
-    // Call interceptors before validate stage
-    RequestMetaContext validateContext =
-        RequestMetaContext.builder()
-            .serviceName(serviceData.getServiceDefinition().getName())
-            .environment(environment)
-            .userDetails(userDetails)
-            .additionalContext(Map.of(Constants.ACTION, Constants.VALIDATE_ACTION))
-            .build();
-
-    return interceptorService
-        .invokeInterceptors(componentDataMap, validateContext)
-        .flatMapPublisher(
-            interceptedComponentDataMap -> {
-              List<ComponentAction> componentValidateActions =
-                  ActionUtil.buildComponentActions(
-                      interceptedComponentDataMap, Action.VALIDATE, validateStageConfig);
-              // Create validate task and trigger validate
-              return createValidateTasks(serviceData, interceptedComponentDataMap, userDetails)
-                  .switchIfEmpty(
-                      Single.error(new IllegalStateException("Failed to create validate tasks")))
-                  .flatMapPublisher(
-                      componentValidateTaskEntities -> {
-                        ServiceRequestQueueMessage serviceRequestQueueMessage =
-                            ServiceUtil.createPayload(
-                                serviceData.getServiceDefinition().getName(),
-                                Constants.VALIDATE_NAMESPACE,
-                                componentValidateActions,
-                                componentValidateTaskEntities
-                                    .get(0)
-                                    .getServiceValidateTaskEntity()
-                                    .getId(),
-                                userDetails.getOrgId());
-                        // Add VALIDATE message to queue
-                        return SingleUtil.toSingle(
-                                messageProducer.send(serviceRequestQueueMessage.compressMessage()))
-                            .toFlowable()
-                            .flatMap(
-                                s ->
-                                    databasePollerService.pollDatabase(
-                                        componentValidateTaskEntities
-                                            .get(0)
-                                            .getServiceValidateTaskEntity()
-                                            .getId(),
-                                        Action.VALIDATE));
-                      });
-            });
-  }
-
-  public Maybe<List<ComponentValidateTaskEntity>> createValidateTasks(
-      ServiceData serviceData,
-      Map<ComponentIdentifier, ComponentData> componentDataMap,
-      UserDetails userDetails) {
-    return mysqlClient
-        .getMasterClient()
-        .rxWithTransaction(
-            (Function<SqlConnection, Maybe<List<ComponentValidateTaskEntity>>>)
-                connection ->
-                    serviceValidateTaskDao
-                        .createServiceValidateTask(
-                            connection,
-                            ValidationUtil.createServiceValidateTaskEntity(
-                                serviceData, userDetails))
-                        .flatMap(
-                            serviceValidateTaskEntity ->
-                                componentValidateTaskDao.createComponentValidateTasks(
-                                    connection,
-                                    ValidationUtil.createComponentValidateTaskEntities(
-                                        serviceData.getServiceDefinition(),
-                                        componentDataMap,
-                                        serviceValidateTaskEntity,
-                                        userDetails)))
-                        .toMaybe());
   }
 
   public Flowable<OperateServiceResponse> operateService(
@@ -885,7 +689,7 @@ public class ServiceBusiness {
         .switchIfEmpty(
             Maybe.error(
                 ExceptionUtil.getException(
-                    OdinError.SERVICE_DOES_NOT_EXIST_IN_ENV,
+                    OdinError.SERVICE_DOES_NOT_EXIST,
                     operateServiceRequest.getServiceName(),
                     environment.getId())))
         .flatMap(
@@ -1102,98 +906,6 @@ public class ServiceBusiness {
                                       this.databasePollerService.pollDatabase(
                                           env.id(), serviceName));
                             }));
-  }
-
-  private Flowable<ServiceResponse> filterUndeployedComponentsAndApplyAction(
-      Environment environment,
-      List<ComponentTaskEntity> componentTaskEntities,
-      UserDetails userDetails,
-      List<String> components,
-      ServiceTaskEntity serviceTaskEntity,
-      Action action) {
-    // Remove already undeployed components
-    Set<String> undeployedComponentNames =
-        componentTaskEntities.stream()
-            .filter(
-                componentTaskEntity ->
-                    componentTaskEntity.getStatus().equals(TaskStatus.SUCCESSFUL)
-                        && componentTaskEntity.getAction().equals(Action.UNDEPLOY))
-            .map(ComponentTaskEntity::getComponentName)
-            .collect(Collectors.toSet());
-
-    ServiceDefinition serviceDefinitionConfig =
-        JsonUtil.jsonToProtoBuilder(serviceTaskEntity.getConfig(), ServiceDefinition.newBuilder())
-            .build();
-
-    Set<String> componentNames = new HashSet<>(components);
-    List<ComponentDefinition> componentDefinitions =
-        componentTaskEntities.stream()
-            .filter(
-                componentTaskEntity ->
-                    componentNames.isEmpty()
-                        || !componentNames.contains(componentTaskEntity.getComponentName()))
-            .map(
-                componentTaskEntity -> {
-                  componentNames.add(componentTaskEntity.getComponentName());
-                  JsonObject componentDefinitionJson =
-                      componentTaskEntity.getConfig().getJsonObject(COMPONENT_CONFIG_KEY);
-                  return JsonUtil.jsonToProtoBuilder(
-                          componentDefinitionJson, ComponentDefinition.newBuilder())
-                      .build();
-                })
-            .toList();
-
-    List<ComponentProvisioningConfig> componentProvisioningConfigs =
-        componentTaskEntities.stream()
-            .map(
-                componentTaskEntity ->
-                    JsonUtil.jsonToProtoBuilder(
-                            componentTaskEntity.getConfig().getJsonObject(PROVISIONING_CONFIG_KEY),
-                            ComponentProvisioningConfig.newBuilder())
-                        .build())
-            .toList();
-
-    ServiceDefinition serviceDefinition =
-        ServiceDefinition.newBuilder(serviceDefinitionConfig)
-            .addAllComponents(componentDefinitions)
-            .build();
-
-    ServiceData serviceData =
-        ServiceData.builder()
-            .serviceDefinition(serviceDefinition)
-            .componentProvisioningConfigs(componentProvisioningConfigs)
-            .build();
-
-    Map<ComponentIdentifier, ComponentData> componentDataMap =
-        ComponentUtil.buildComponentsData(serviceData, action, componentTaskEntities);
-
-    List<ComponentAction> componentActions =
-        ActionUtil.buildComponentActions(componentDataMap, action, new HashMap<>());
-
-    Action actionToApply;
-    if (action == Action.HEALTHCHECK) {
-      actionToApply = Action.HEALTHCHECK;
-    } else {
-      actionToApply = components.isEmpty() ? Action.UNDEPLOY : Action.OPERATE;
-    }
-
-    List<ComponentAction> filteredComponentActions =
-        filterUndeployedComponentActions(componentActions, undeployedComponentNames);
-
-    if (actionToApply == Action.UNDEPLOY) {
-      filteredComponentActions =
-          filterDependentComponentFailureComponents(
-              filteredComponentActions, componentTaskEntities);
-    }
-
-    return applyActionToService(
-        serviceData,
-        componentDataMap,
-        environment,
-        filteredComponentActions,
-        userDetails,
-        actionToApply,
-        serviceTaskEntity.getVersion());
   }
 
   private List<ComponentAction> filterDependentComponentFailureComponents(
@@ -1456,50 +1168,6 @@ public class ServiceBusiness {
   //    throw ExceptionUtil.getException(
   //        OdinError.SERVICE_DOES_NOT_EXIST_IN_ENV, serviceName, environment.getName());
   //  }
-
-  public Flowable<DeployedServiceStatus> getServiceStatus(
-      Environment environment, ServiceTask serviceTask, UserDetails userDetails) {
-    return serviceTaskDao
-        .getLatestCompletedServiceTask(
-            serviceTask.getName(), environment.getName(), userDetails.getOrgId())
-        .flatMapPublisher(
-            serviceTaskEntity ->
-                componentTaskDao
-                    .getLatestComponentTasks(serviceTaskEntity)
-                    .flatMapPublisher(
-                        componentTaskEntities ->
-                            // Remove already undeployed components
-                            filterUndeployedComponentsAndApplyAction(
-                                    environment,
-                                    componentTaskEntities,
-                                    userDetails,
-                                    new ArrayList<>(),
-                                    serviceTaskEntity,
-                                    Action.HEALTHCHECK)
-                                .map(
-                                    response ->
-                                        DeployedServiceStatus.newBuilder()
-                                            .setServiceName(serviceTaskEntity.getName())
-                                            .setServiceVersion(
-                                                serviceTaskEntity.getServiceVersion())
-                                            .setServiceStatus(
-                                                response.getServiceStatus().getServiceStatus())
-                                            .setLastDeployed(serviceTask.getCreatedAt().toString())
-                                            .addAllComponentStatus(
-                                                response.getComponentsStatusList().stream()
-                                                    .map(
-                                                        componentStatus ->
-                                                            StatusEnvComponentStatus.newBuilder()
-                                                                .setComponentStatus(
-                                                                    componentStatus
-                                                                        .getComponentStatus())
-                                                                .setComponentName(
-                                                                    componentStatus
-                                                                        .getComponentName())
-                                                                .build())
-                                                    .toList())
-                                            .build())));
-  }
 
   @SneakyThrows
   public Flowable<DeployServiceResponse> deployService(

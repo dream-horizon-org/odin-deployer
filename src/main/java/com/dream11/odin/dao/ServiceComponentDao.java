@@ -27,7 +27,7 @@ import static com.dream11.odin.dao.query.MysqlQuery.UPDATE_ENVIRONMENT_SERVICE_S
 import static com.dream11.odin.dao.query.MysqlQuery.UPSERT_ENVIRONMENT_SERVICE;
 import static com.dream11.odin.dao.query.MysqlQuery.UPSERT_ENVIRONMENT_SERVICE_COMPONENT;
 import static com.dream11.odin.error.OdinError.INTERNAL_SERVER_ERROR;
-import static com.dream11.odin.error.OdinError.SERVICE_DOES_NOT_EXIST_IN_ENV;
+import static com.dream11.odin.error.OdinError.SERVICE_DOES_NOT_EXIST;
 
 import com.dream11.grpc.util.ExceptionUtil;
 import com.dream11.odin.client.MysqlClient;
@@ -71,8 +71,7 @@ public class ServiceComponentDao {
     return this.getEnvironmentServiceWithComponentsIfExists(envId, serviceName)
         .switchIfEmpty(
             Single.error(
-                ExceptionUtil.getException(
-                    OdinError.SERVICE_DOES_NOT_EXIST_IN_ENV, serviceName, envId)));
+                ExceptionUtil.getException(OdinError.SERVICE_DOES_NOT_EXIST, serviceName, envId)));
   }
 
   public Single<EnvironmentServiceEntityWithComponents> getEnvironmentServiceWithComponent(
@@ -101,9 +100,7 @@ public class ServiceComponentDao {
       environmentServiceEntity.getServiceConfig(),
       environmentServiceEntity.getServiceStatus().name(),
       environmentServiceEntity.getCreatedBy(),
-      environmentServiceEntity.getUpdatedBy(),
-      environmentServiceEntity.getServiceAction().getName(),
-      environmentServiceEntity.getServiceStatus().name()
+      environmentServiceEntity.getUpdatedBy()
     };
     return sqlConnection
         .preparedQuery(UPSERT_ENVIRONMENT_SERVICE)
@@ -115,23 +112,30 @@ public class ServiceComponentDao {
   }
 
   public Completable updateEnvironmentServiceStatus(String status, long id) {
-    return mysqlClient
+    return this.mysqlClient
         .getMasterClient()
         .preparedQuery(UPDATE_ENVIRONMENT_SERVICE_STATUS)
         .rxExecute(Tuple.of(status, id))
         .filter(rowSet -> rowSet.rowCount() > 0)
-        .switchIfEmpty(Single.error(ExceptionUtil.getException(INTERNAL_SERVER_ERROR)))
+        .switchIfEmpty(
+            Single.error(
+                ExceptionUtil.getException(OdinError.NO_ROWS_UPDATED, "environment_service", id)))
         .ignoreElement();
   }
 
   public Completable updateEnvironmentServiceComponentStatus(
       String status, long serviceId, String componentName) {
-    return mysqlClient
+    return this.mysqlClient
         .getMasterClient()
         .preparedQuery(UPDATE_ENVIRONMENT_SERVICE_COMPONENT_STATUS)
         .rxExecute(Tuple.of(status, componentName, serviceId))
         .filter(rowSet -> rowSet.rowCount() > 0)
-        .switchIfEmpty(Single.error(ExceptionUtil.getException(INTERNAL_SERVER_ERROR)))
+        .switchIfEmpty(
+            Single.error(
+                ExceptionUtil.getException(
+                    OdinError.NO_ROWS_UPDATED,
+                    "environment_service_component",
+                    String.join(",", String.valueOf(serviceId), componentName))))
         .ignoreElement();
   }
 
@@ -152,9 +156,7 @@ public class ServiceComponentDao {
                                 c.getConfig().encode(),
                                 c.getAccountData().encode(),
                                 c.getCreatedBy(),
-                                c.getUpdatedBy(),
-                                c.getAction().getName(),
-                                c.getStatus().getValue())))
+                                c.getUpdatedBy())))
                 .toList())
         .filter(rowSet -> rowSet.rowCount() > 0)
         .switchIfEmpty(
@@ -169,7 +171,7 @@ public class ServiceComponentDao {
         .rxExecute(Tuple.of(environmentId, serviceName))
         .filter(rowSet -> rowSet.size() > 0)
         .switchIfEmpty(
-            Single.error(ExceptionUtil.getException(SERVICE_DOES_NOT_EXIST_IN_ENV, serviceName)))
+            Single.error(ExceptionUtil.getException(SERVICE_DOES_NOT_EXIST, serviceName)))
         .map(rowSet -> rowSet.iterator().next().getLong("id"));
   }
 

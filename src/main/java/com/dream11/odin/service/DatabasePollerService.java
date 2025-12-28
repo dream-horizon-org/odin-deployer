@@ -36,7 +36,7 @@ public class DatabasePollerService {
 
   public Flowable<ServiceResponse> pollDatabase(
       Long taskId, Action action, Set<String> components) {
-    return Flowable.interval(appConfig.getServiceDbStatusCheckIntervalSecs(), TimeUnit.SECONDS)
+    return Flowable.interval(this.appConfig.getServiceDbStatusCheckIntervalSecs(), TimeUnit.SECONDS)
         .flatMap(
             tick ->
                 action.equals(Action.VALIDATE)

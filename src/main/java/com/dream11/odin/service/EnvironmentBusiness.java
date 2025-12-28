@@ -338,7 +338,7 @@ public class EnvironmentBusiness {
         continue;
       }
       sqsCompletables.add(
-          this.pushToSqs(
+          this.createTaskAndPushToQueue(
               environmentName,
               JsonUtil.getJsonFromProto(
                   providerAccountResponseMap.get(account.accountName()).getAccount()),
@@ -359,8 +359,7 @@ public class EnvironmentBusiness {
                 this.waitForCreateEnvStatusUpdate(
                     environmentAccounts
                         .get(0)
-                        .environmentId())); // All environment accounts will have same environment
-    // id
+                        .environmentId())); // All env accounts will have same environment id
   }
 
   private Flowable<CreateEnvironmentResponse> waitForCreateEnvStatusUpdate(long envId) {
@@ -412,13 +411,13 @@ public class EnvironmentBusiness {
                     .contains(getStatus(Action.DELETE_ENVIRONMENT, TaskStatus.IN_PROGRESS)));
   }
 
-  private Completable pushToSqs(
+  private Completable createTaskAndPushToQueue(
       String environmentName,
       JsonObject accountData,
       long environmentAccountId,
       Action environmentAction,
       Long orgId) {
-    String message =
+    JsonObject message =
         new NamespaceRequestMessage(
                 environmentName,
                 accountData,
@@ -426,11 +425,7 @@ public class EnvironmentBusiness {
                 environmentAccountId,
                 orgId,
                 ApplicationContext.getTraceId())
-            .createRequest()
-            .toString();
-
-    String encodedMessage = ApplicationUtil.compressAndEncode(message);
-
+            .createRequest();
     // Insert into execution_tasks table before pushing to SQS
     return this.executionTaskDao
         .createExecutionTask(
@@ -441,7 +436,9 @@ public class EnvironmentBusiness {
             ApplicationContext.getTraceId(),
             message,
             ApplicationContext.getUserDetails().getUserId())
-        .andThen(SingleUtil.toSingle(this.messageProducer.send(encodedMessage)))
+        .andThen(
+            SingleUtil.toSingle(
+                this.messageProducer.send(ApplicationUtil.compressAndEncode(message.toString()))))
         .ignoreElement();
   }
 
@@ -565,7 +562,7 @@ public class EnvironmentBusiness {
         partitionedEnvAccounts.get(false).stream()
             .map(
                 environmentAccount ->
-                    this.pushToSqs(
+                    this.createTaskAndPushToQueue(
                         envWithAccounts.getEnvironment().name(),
                         environmentAccount.accountData().getJsonObject("account"),
                         environmentAccount.id(),

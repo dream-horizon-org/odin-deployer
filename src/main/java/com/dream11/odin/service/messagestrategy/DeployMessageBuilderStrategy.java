@@ -11,7 +11,8 @@ public class DeployMessageBuilderStrategy implements MessageBuilderStrategy {
     return ServiceUtil.createPayload(
         messageBuilderPojo.getServiceName(),
         messageBuilderPojo.getEnvName(),
-        ComponentUtil.getComponentActions(messageBuilderPojo.getComponentDataMap(), Map.of()),
+        ComponentUtil.getComponentActions(
+            messageBuilderPojo.getComponentDataMap(), Map.of()), // TODO Yash add stage map
         messageBuilderPojo.getServiceId(),
         messageBuilderPojo.getOrgId());
   }

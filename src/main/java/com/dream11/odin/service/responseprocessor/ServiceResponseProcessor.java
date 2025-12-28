@@ -24,6 +24,7 @@ public class ServiceResponseProcessor implements ResponseProcessor {
 
   private Completable handleResponse(ResponseMessage responseMessage) {
     if (responseMessage.getType().equals(ResponseMessageType.SERVICE_STATUS)) {
+      // TODO update execution task and lock release
       return this.serviceComponentDao.updateEnvironmentServiceStatus(
           responseMessage.getStatus().getValue(), responseMessage.getId());
     } else if (responseMessage.getType().equals(ResponseMessageType.COMPONENT_STATUS)) {

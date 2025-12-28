@@ -121,6 +121,88 @@ public class MysqlQuery {
   public static final String GET_ENVIRONMENT_SERVICE_COMPONENT =
       GET_ENVIRONMENT_SERVICE_COMPONENTS + " AND esc.name=?;";
 
+  public static final String CREATE_ENVIRONMENT_LOCK_IF_ABSENT =
+      """
+    INSERT IGNORE INTO environment_lock (environment_id, created_by, updated_by) VALUES (?, ?, ?);
+  """;
+
+  public static final String ACQUIRE_ENVIRONMENT_SHARED =
+      """
+    UPDATE environment_lock SET shared_count = shared_count + 1
+    WHERE environment_id = ? AND exclusive = 0;
+  """;
+
+  public static final String RELEASE_ENVIRONMENT_SHARED =
+      """
+    UPDATE environment_lock SET shared_count = GREATEST(shared_count - 1, 0) WHERE environment_id = ?;
+  """;
+
+  public static final String ACQUIRE_ENVIRONMENT_EXCLUSIVE =
+      """
+    UPDATE environment_lock SET exclusive = 1 WHERE environment_id = ? AND exclusive = 0 AND shared_count = 0;
+  """;
+
+  public static final String RELEASE_ENVIRONMENT_EXCLUSIVE =
+      """
+    UPDATE environment_lock SET exclusive = 0 WHERE environment_id = ? AND exclusive = 1;
+  """;
+
+  public static final String INSERT_EXECUTION_TASK =
+      """
+    INSERT INTO execution_tasks (action, org_id, response, status, entity, execution_id, payload, created_by, updated_by) VALUES (?, ?, JSON_OBJECT(), ?, ?, ?, ?, ?, ?);
+  """;
+
+  public static final String GET_EXECUTION_BY_ID_AND_ACTION =
+      """
+    SELECT
+      execution_tasks.id,
+      execution_tasks.action,
+      execution_tasks.org_id,
+      execution_tasks.status,
+      execution_tasks.entity,
+      execution_tasks.execution_id,
+      execution_tasks.response,
+      execution_tasks.payload
+    FROM execution_tasks
+    WHERE execution_id=? AND action=?;
+  """;
+
+  public static final String UPSERT_ENVIRONMENT_SERVICE =
+      """
+    INSERT INTO environment_service (environment_id, name, action, config, status, created_by, updated_by)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+    ON DUPLICATE KEY UPDATE
+    action = VALUES(action), config = VALUES(config), status = VALUES(status), updated_by = VALUES(updated_by);
+  """;
+
+  public static final String UPSERT_ENVIRONMENT_SERVICE_COMPONENT =
+      """
+    INSERT INTO environment_service_component
+       (environment_service_id, action, name, status, config, account_data, created_by, updated_by)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    ON DUPLICATE KEY UPDATE
+      action = VALUES(action),
+      status = VALUES(status),
+      config = VALUES(config),
+      account_data = VALUES(account_data),
+      updated_by = VALUES(updated_by);
+  """;
+
+  public static final String GET_ENVIRONMENT_SERVICE_ID =
+      """
+    SELECT id FROM environment_service WHERE environment_id = ? AND name = ?
+  """;
+
+  public static final String UPDATE_ENVIRONMENT_SERVICE_STATUS =
+      """
+    UPDATE environment_service SET status = ? WHERE id = ?;
+  """;
+
+  public static final String UPDATE_ENVIRONMENT_SERVICE_COMPONENT_STATUS =
+      """
+    UPDATE environment_service_component SET status = ? WHERE name = ? AND environment_service_id = ?;
+  """;
+
   // TODO AKSHAY Review and delete below this
 
   public static final String UPDATE_EXECUTION_TASK =
@@ -177,62 +259,6 @@ public class MysqlQuery {
           + "FROM service_task  LEFT JOIN action ON action_id=action.id   JOIN environment ev ON service_task.env_id=ev.id "
           + "WHERE trace_id = ?  AND action.name in ('DEPLOY', 'OPERATE') AND service_task.name = ? AND ev.name = ?;";
 
-  public static final String GET_EXECUTION_BY_ID_AND_ACTION =
-      "SELECT execution_tasks.id, execution_tasks.action, "
-          + "execution_tasks.org_id, execution_tasks.status, execution_tasks.entity,"
-          + " execution_tasks.execution_id, execution_tasks.response, "
-          + "execution_tasks.payload from execution_tasks where execution_id=? and action.name=?;";
-
-  public static final String UPSERT_ENVIRONMENT_SERVICE =
-      "INSERT INTO environment_service ( "
-          + "    environment_id, "
-          + "    name, "
-          + "    action, "
-          + "    config, "
-          + "    status, "
-          + "    created_by, "
-          + "    updated_by "
-          + ") VALUES ( "
-          + "    ?, ?, ?, ?, ?, ?, ? "
-          + ") ON DUPLICATE KEY UPDATE "
-          + "    action = ?, "
-          + "    config = VALUES(config), "
-          + "    status = ?, "
-          + "    updated_by = VALUES(updated_by) ";
-
-  public static final String UPSERT_ENVIRONMENT_SERVICE_COMPONENT =
-      """
-INSERT INTO environment_service_component
-            (environment_service_id, action, name, status, config, account_data, created_by, updated_by)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        ON DUPLICATE KEY UPDATE
-            action = ?,
-            status = ?,
-            config = VALUES(config),
-            account_data = VALUES(account_data),
-            updated_by = VALUES(updated_by)
-""";
-
-  public static final String GET_ENVIRONMENT_SERVICE_ID =
-      "SELECT id FROM environment_service WHERE environment_id = ? AND name = ?";
-
-  public static final String UPDATE_ENVIRONMENT_SERVICE_STATUS =
-      "UPDATE environment_service SET status = ? WHERE id = ?;";
-  public static final String UPDATE_ENVIRONMENT_SERVICE_COMPONENT_STATUS =
-      "UPDATE environment_service_component SET status = ? WHERE name = ? AND environment_service_id = ?;";
-
-  public static final String GET_LATEST_COMPLETED_SERVICE_TASK =
-      SELECT_SERVICE_TASK_FIELDS
-          + "FROM service_task LEFT JOIN action ON action_id=action.id  "
-          + "WHERE env_id = ? AND service_task.name = ? and status in ('FAILED', 'SUCCESSFUL') "
-          + "ORDER BY service_task.id DESC "
-          + "LIMIT 1;";
-
-  public static final String GET_LATEST_SERVICE_TASK_FROM_ENV_AND_ORG =
-      SELECT_SERVICE_TASK_FIELDS
-          + "FROM service_task LEFT JOIN action ON service_task.action_id=action.id  JOIN environment ON service_task.env_id=environment.id WHERE environment.name "
-          + "= ? AND environment.org_id = ? AND service_task.name = ? ORDER BY service_task.id DESC LIMIT 1;";
-
   public static final String GET_ALL_RUNNING_SERVICE_NAMES_FROM_ENV =
       "SELECT es.name AS service_name, "
           + "es.action AS action_name, "
@@ -270,9 +296,6 @@ INSERT INTO environment_service_component
                       and component_name = ?
                       and action_id = (SELECT action.id AS action_id FROM action WHERE action.name = ?);
                     """;
-
-  public static final String UPDATE_SERVICE_TASK_STATUS =
-      "UPDATE service_task SET status = ? WHERE id = ?;";
 
   public static final String CREATE_SERVICE_VALIDATE_TASK =
       "INSERT INTO service_validate_task "
@@ -413,24 +436,6 @@ INSERT INTO environment_service_component
                     LIMIT 1;
                     """;
 
-  public static final String CREATE_ENVIRONMENT_LOCK_IF_ABSENT =
-      "INSERT IGNORE INTO environment_lock (environment_id, created_by, updated_by) VALUES (?, ?, ?);";
-
-  public static final String ACQUIRE_ENVIRONMENT_SHARED =
-      "UPDATE environment_lock SET shared_count = shared_count + 1 "
-          + "WHERE environment_id = ? AND exclusive = 0;";
-
-  public static final String RELEASE_ENVIRONMENT_SHARED =
-      "UPDATE environment_lock SET shared_count = GREATEST(shared_count - 1, 0) "
-          + "WHERE environment_id = ?;";
-
-  public static final String ACQUIRE_ENVIRONMENT_EXCLUSIVE =
-      "UPDATE environment_lock SET exclusive = 1 "
-          + "WHERE environment_id = ? AND exclusive = 0 AND shared_count = 0;";
-
-  public static final String RELEASE_ENVIRONMENT_EXCLUSIVE =
-      "UPDATE environment_lock SET exclusive = 0 WHERE environment_id = ? AND exclusive = 1;";
-
   public static final String CREATE_ENVIRONMENT_SERVICE_LOCK_IF_ABSENT =
       "INSERT IGNORE INTO environment_service_lock (environment_id, environment_service_id, created_by, updated_by) VALUES (?, ?, ?, ?);";
 
@@ -468,10 +473,6 @@ INSERT INTO environment_service_component
   public static final String RELEASE_ENVIRONMENT_SERVICE_COMPONENT_EXCLUSIVE_LOCK =
       "UPDATE environment_service_component_lock SET exclusive = 0, updated_at = NOW() "
           + "WHERE env_id = ? AND environment_service_id = ? AND environment_service_component_id = ? AND exclusive = 1;";
-
-  public static final String INSERT_EXECUTION_TASK =
-      "INSERT INTO execution_tasks (action, org_id, response, status, entity, execution_id, payload, created_by, updated_by) "
-          + "VALUES (?, ?, JSON_OBJECT(), ?, ?, ?, CAST(? AS JSON), ?, ?)";
 
   public static final String GET_AUTH_PROVIDER_FOR_ORG =
       "SELECT type, provider_details from auth_provider where org_id=?;";
