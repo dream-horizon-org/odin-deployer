@@ -26,6 +26,6 @@ public class ServiceRequestQueueMessage {
 
   @SneakyThrows
   public String compressMessage() {
-    return ApplicationUtil.compressAndEncode(toJsonString());
+    return ApplicationUtil.compressAndEncode(this.toJsonString());
   }
 }

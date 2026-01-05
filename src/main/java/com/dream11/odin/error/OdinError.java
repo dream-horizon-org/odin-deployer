@@ -14,8 +14,7 @@ public enum OdinError implements GrpcError {
   INVALID_USER_LOGIN("OD102", "Access Denied", Code.PERMISSION_DENIED),
   ENV_NAME_MISSING("OD103", "Please provide env_name param", Code.INVALID_ARGUMENT),
   ENV_DOES_NOT_EXIST("OD104", "Environment with name:%s does not exist", Code.NOT_FOUND),
-  SERVICE_DOES_NOT_EXIST_IN_ENV(
-      "OD105", "Service with name:%s does not exist in env:%s", Code.NOT_FOUND),
+  SERVICE_DOES_NOT_EXIST("OD105", "Service with name:%s does not exist", Code.NOT_FOUND),
   COMPONENT_DOES_NOT_EXIST_IN_SERVICE(
       "OD106", "Component with name:%s does not exist in service:%s", Code.NOT_FOUND),
   PROVIDE_BOTH_SERVICE_AND_COMPONENT(
@@ -140,7 +139,14 @@ public enum OdinError implements GrpcError {
       "OD230", "Failed to parse token response from provider", Code.INTERNAL),
   EXECUTION_NOT_FOUND("OD231", "Execution not found for executionId: %s", Code.INVALID_ARGUMENT),
 
-  FAILED_TO_ACQUIRE_LOCK("OD232", "Failed to acquire lock on %s", Code.INVALID_ARGUMENT);
+  FAILED_TO_ACQUIRE_LOCK("OD232", "Failed to acquire lock on %s", Code.INVALID_ARGUMENT),
+  ANOTHER_OPERATION_IN_PROGRESS(
+      "OD233", "Failed to %s, another operation is in progress", Code.INVALID_ARGUMENT),
+  NO_ROWS_UPDATED("OD235", "No rows were updated. Details: table: %s, params:%s", Code.INTERNAL),
+  INVALID_NAMESPACE_RESPONSE_DATA(
+      "OD235", "Invalid namespace response data. Error: %s", Code.INTERNAL),
+  ENV_ACCOUNT_DOES_NOT_EXIST(
+      "OD236", "Environment account with id:%s does not exist", Code.NOT_FOUND);
 
   private final String errorCode;
   private final String errorMessage;

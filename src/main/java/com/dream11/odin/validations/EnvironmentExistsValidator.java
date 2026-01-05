@@ -9,7 +9,7 @@ import com.dream11.odin.dao.EnvironmentDao;
 import com.dream11.odin.dto.UserDetails;
 import com.dream11.odin.util.EnvironmentUtil;
 import io.reactivex.Completable;
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,12 +18,9 @@ import lombok.extern.slf4j.Slf4j;
 @AllArgsConstructor
 public class EnvironmentExistsValidator extends Validator {
 
-  private static final List<String> VALID_STATUS =
-      Arrays.asList(
-          EnvironmentUtil.getStatus(Action.CREATE_ENVIRONMENT, TaskStatus.IN_PROGRESS),
-          EnvironmentUtil.getStatus(Action.CREATE_ENVIRONMENT, TaskStatus.SUCCESSFUL),
-          EnvironmentUtil.getStatus(Action.DELETE_ENVIRONMENT, TaskStatus.IN_PROGRESS),
-          EnvironmentUtil.getStatus(Action.DELETE_ENVIRONMENT, TaskStatus.FAILED));
+  private static final List<String> VALID_EXISTING_STATUS =
+      Collections.singletonList(
+          EnvironmentUtil.getStatus(Action.DELETE_ENVIRONMENT, TaskStatus.SUCCESSFUL));
 
   final EnvironmentDao environmentDao;
 
@@ -34,14 +31,14 @@ public class EnvironmentExistsValidator extends Validator {
   @Override
   public Completable validate() {
     return this.environmentDao
-        .getEnvironmentByNameAndIsActiveIfExists(userDetails.getOrgId(), this.environmentName)
+        .getEnvironmentWithAccountsIfExists(userDetails.getOrgId(), this.environmentName)
         .doOnSuccess(
             environment -> {
-              if (VALID_STATUS.contains(environment.getStatus())) {
-                throw ExceptionUtil.getException(ENV_ALREADY_EXISTS, environment.getStatus());
+              if (!VALID_EXISTING_STATUS.contains(environment.getEnvironment().status())) {
+                throw ExceptionUtil.getException(
+                    ENV_ALREADY_EXISTS, environment.getEnvironment().status());
               }
             })
-        .doOnError(err -> log.error("Error {}", err.getMessage(), err))
         .ignoreElement();
   }
 }

@@ -31,13 +31,14 @@ public class EnvironmentStateValidatorForDelete extends Validator {
   @Override
   public Completable validate() {
     final UserDetails userDetails = ApplicationContext.getUserDetails();
-    return environmentDao
-        .getEnvironmentByNameAndIsActiveIfExists(userDetails.getOrgId(), environmentName)
+    return this.environmentDao
+        .getEnvironmentWithAccounts(userDetails.getOrgId(), environmentName)
         .flatMapCompletable(
-            environment -> {
-              if (!VALID_STATUS.contains(environment.getStatus())) {
+            envWithAccounts -> {
+              if (!VALID_STATUS.contains(envWithAccounts.getEnvironment().status())) {
                 return Completable.error(
-                    ExceptionUtil.getException(ENV_CANNOT_BE_DELETED, environment.getStatus()));
+                    ExceptionUtil.getException(
+                        ENV_CANNOT_BE_DELETED, envWithAccounts.getEnvironment().status()));
               }
               return Completable.complete();
             });

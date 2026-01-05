@@ -2,7 +2,6 @@
   "type": "object",
   "required": [
     "name",
-    "version",
     "components"
   ],
   "properties": {
@@ -10,23 +9,7 @@
       "type": "string",
       "pattern": "^[a-z][a-z0-9-]*$"
     },
-    "team": {
-      "type": "string"
-    },
-    "version": {
-      "type": "string"
-    },
-    "isActive": {
-      "enum": [
-        "True",
-        "False"
-      ],
-      "type": "string"
-    },
-    "maturity": {
-      "type": "object"
-    },
-    "meta_info": {
+    "metadata": {
       "type": "object"
     },
     "components": {

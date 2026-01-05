@@ -47,15 +47,13 @@ public class ValidationUtil {
 
   public Completable validateServiceState(
       ServiceComponentDao serviceComponentDao,
-      String envName,
+      long envId,
       Map<ComponentIdentifier, ComponentData> componentDataMap,
-      ServiceData serviceData,
-      long orgId) {
+      ServiceData serviceData) {
     Validator validator = new Validator();
-
     validator.add(
         new ServiceStatusValidatorForDeploy(
-            serviceComponentDao, envName, componentDataMap, serviceData, orgId));
+            serviceComponentDao, envId, componentDataMap, serviceData));
     return validator.validateAll();
   }
 
@@ -68,12 +66,9 @@ public class ValidationUtil {
   }
 
   public Completable validateDeploymentTypePrefix(
-      ProvisioningConfig provisioningConfig,
-      List<AccountInformation> accountInformationList,
-      String envName) {
+      ProvisioningConfig provisioningConfig, List<AccountInformation> accountInformationList) {
     Validator validator = new Validator();
-    validator.add(
-        new ComponentDeploymentTypeValidator(provisioningConfig, accountInformationList, envName));
+    validator.add(new ComponentDeploymentTypeValidator(provisioningConfig, accountInformationList));
 
     return validator.validateAll();
   }

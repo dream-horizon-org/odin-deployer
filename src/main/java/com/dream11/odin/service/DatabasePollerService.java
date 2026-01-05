@@ -36,25 +36,24 @@ public class DatabasePollerService {
 
   public Flowable<ServiceResponse> pollDatabase(
       Long taskId, Action action, Set<String> components) {
-    return Flowable.interval(appConfig.getServiceDbStatusCheckIntervalSecs(), TimeUnit.SECONDS)
+    return Flowable.interval(this.appConfig.getServiceDbStatusCheckIntervalSecs(), TimeUnit.SECONDS)
         .flatMap(
             tick ->
-                (action.equals(Action.VALIDATE))
-                    ? checkValidateStatusUpdate(taskId, components)
-                    : checkStatusUpdate(taskId, components))
+                action.equals(Action.VALIDATE)
+                    ? this.checkValidateStatusUpdate(taskId, components)
+                    : this.checkStatusUpdate(taskId, components))
         .takeUntil(this::doTerminateDeploy);
   }
 
-  public Flowable<ServiceResponse> pollDatabase(String serviceName, String envName, long orgId) {
-    return Flowable.interval(appConfig.getServiceDbStatusCheckIntervalSecs(), TimeUnit.SECONDS)
-        .flatMap(tick -> checkStatusUpdate(serviceName, envName, orgId))
+  public Flowable<ServiceResponse> pollDatabase(long envId, String serviceName) {
+    return Flowable.interval(this.appConfig.getServiceDbStatusCheckIntervalSecs(), TimeUnit.SECONDS)
+        .flatMap(tick -> this.checkStatusUpdate(envId, serviceName))
         .takeUntil(this::doTerminateDeploy);
   }
 
-  private Flowable<ServiceResponse> checkStatusUpdate(
-      String serviceName, String envName, long orgId) {
-    return serviceComponentDao
-        .getServiceComponentStateInEnv(orgId, envName, serviceName)
+  private Flowable<ServiceResponse> checkStatusUpdate(long envId, String serviceName) {
+    return this.serviceComponentDao
+        .getEnvironmentServiceWithComponents(envId, serviceName)
         .map(
             environmentServiceComponentEntity ->
                 ServiceResponse.newBuilder()

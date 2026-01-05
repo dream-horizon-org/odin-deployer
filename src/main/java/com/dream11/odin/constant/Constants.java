@@ -33,7 +33,7 @@ public class Constants {
   public static final int RECEIVE_WAIT_TIMEOUT_SECONDS = 10;
   public static final String PROVIDER_ACCOUNT_SERVICE = "__provider_account_service__";
   public static final String ORG_ID_HEADER = "orgId";
-  public static final String EKS_PROVIDER_SERVICE_CATEGORY = "KUBERNETES";
+  public static final String KUBERNETES_PROVIDER_SERVICE_CATEGORY = "KUBERNETES";
   public static final String SERVICE_NAME = "service_name";
   public static final String STATUS = "status";
   public static final String ID = "id";
@@ -47,7 +47,10 @@ public class Constants {
   public static final String OPERATION_CONFIG_KEY = "operationConfig";
   public static final String AUTHORIZATION_KEY = "Authorization";
 
+  public static final String COL_NAME = "name";
+  public static final String COL_ORG_ID = "org_id";
   public static final String COL_COMPONENT_CONFIG = "component_config";
+  public static final String COL_SERVICE_CONFIG = "service_config";
   public static final String COL_CONFIG = "config";
   public static final String COL_SERVICE_CONFIG_HASH = "service_config_hash";
   public static final String COL_SERVICE_VERSION = "service_version";
@@ -55,8 +58,30 @@ public class Constants {
   public static final String COL_ACTIONS = "actions";
   public static final String COL_CREATED_BY = "created_by";
   public static final String COL_UPDATED_BY = "updated_by";
-
+  public static final String COL_SERVICE_CREATED_BY = "service_created_by";
+  public static final String COL_SERVICE_UPDATED_BY = "service_updated_by";
+  public static final String COL_COMPONENT_CREATED_BY = "component_created_by";
+  public static final String COL_COMPONENT_UPDATED_BY = "component_updated_by";
+  public static final String COL_CREATED_AT = "created_at";
+  public static final String COL_UPDATED_AT = "updated_at";
+  public static final String COL_SERVICE_CREATED_AT = "service_created_at";
+  public static final String COL_SERVICE_UPDATED_AT = "service_updated_at";
+  public static final String COL_COMPONENT_CREATED_AT = "component_created_at";
+  public static final String COL_COMPONENT_UPDATED_AT = "component_updated_at";
+  public static final String COL_STATUS = "status";
+  public static final String COL_SERVICE_STATUS = "service_status";
+  public static final String COL_COMPONENT_STATUS = "component_status";
+  public static final String COL_ENVIRONMENT_ID = "environment_id";
+  public static final String COL_ID = "id";
+  public static final String COL_PROVIDER_ACCOUNT_NAME = "account_name";
+  public static final String COL_ACCOUNT_DATA = "account_data";
+  public static final String COL_ACTION = "action";
+  public static final String COL_SERVICE_ACTION = "service_action";
+  public static final String COL_COMPONENT_ACTION = "component_action";
+  public static final String COL_SERVICE_NAME = "service_name";
+  public static final String COL_COMPONENT_NAME = "component_name";
   public static final String COL_VERSION = "version";
+
   public static final String STAGE = "stage";
   public static final String USE_OPERATE = "use operate";
   public static final String WAIT_FOR_DEPLOYMENT = "wait for deployment to complete";
@@ -93,7 +118,6 @@ public class Constants {
   public static final String ODIN_COMPONENT_VERSION = "ODIN_COMPONENT_VERSION";
 
   public static final String OIDC = "oidc";
-  public static final String ID_TOKEN = "id_token";
   public static final String EMAIL = "email";
   public static final String GRANT_TYPE = "grant_type";
   public static final String AUTHORIZATION_CODE = "authorization_code";

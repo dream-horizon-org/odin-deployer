@@ -4,6 +4,7 @@ import com.dream11.grpc.util.ExceptionUtil;
 import com.dream11.odin.dao.*;
 import com.dream11.odin.dto.response.ResponseMessage;
 import com.dream11.odin.dto.response.ResponseMessageType;
+import com.dream11.odin.dto.response.ServiceResponseData;
 import com.dream11.odin.error.OdinError;
 import com.google.inject.Inject;
 import io.reactivex.Completable;
@@ -17,21 +18,20 @@ public class ServiceResponseProcessor implements ResponseProcessor {
 
   @Override
   public Completable process(ResponseMessage responseMessage) {
-    log.info(responseMessage.toString());
-    if (responseMessage.getData() != null && !responseMessage.getData().isEmpty())
-      return handleResponse(responseMessage);
-    else return Completable.error(ExceptionUtil.getException(OdinError.INTERNAL_SERVER_ERROR));
+    log.info("Received message: {}", responseMessage.toString());
+    return this.handleResponse(responseMessage);
   }
 
   private Completable handleResponse(ResponseMessage responseMessage) {
     if (responseMessage.getType().equals(ResponseMessageType.SERVICE_STATUS)) {
-      return serviceComponentDao.updateEnvironmentServiceStatus(
+      // TODO update execution task and lock release
+      return this.serviceComponentDao.updateEnvironmentServiceStatus(
           responseMessage.getStatus().getValue(), responseMessage.getId());
     } else if (responseMessage.getType().equals(ResponseMessageType.COMPONENT_STATUS)) {
-      return serviceComponentDao.updateEnvironmentServiceComponentStatus(
+      return this.serviceComponentDao.updateEnvironmentServiceComponentStatus(
           responseMessage.getStatus().getValue(),
           responseMessage.getId(),
-          responseMessage.getData().get("componentName").toString());
+          ((ServiceResponseData) responseMessage.getData()).getComponentName());
     }
     return Completable.error(ExceptionUtil.getException(OdinError.INTERNAL_SERVER_ERROR));
   }

@@ -18,8 +18,8 @@ import com.dream11.odin.dto.UserDetails;
 import com.dream11.odin.dto.v1.AccountInformation;
 import com.dream11.odin.dto.v1.ComponentDefinition;
 import com.dream11.odin.dto.v1.ComponentProvisioningConfig;
-import com.dream11.odin.dto.v1.Environment;
 import com.dream11.odin.entity.ComponentTaskEntity;
+import com.dream11.odin.entity.EnvironmentEntity;
 import io.reactivex.Single;
 import io.vertx.core.json.JsonObject;
 import java.util.HashMap;
@@ -114,7 +114,7 @@ class ComponentEnrichmentServiceTest {
     assertThat(result).hasSize(1);
     verify(componentTaskDao, times(1))
         .getLatestSuccessfulDeployOrOperateComponentTask(
-            requestMetaContext.getEnvironment().getId(),
+            requestMetaContext.getEnvironment().id(),
             requestMetaContext.getServiceName(),
             "test-component");
   }
@@ -224,7 +224,7 @@ class ComponentEnrichmentServiceTest {
     assertThat(result.getAction()).isEqualTo(mockEntity.getAction());
     verify(componentTaskDao, times(1))
         .getLatestSuccessfulDeployOrOperateComponentTask(
-            requestMetaContext.getEnvironment().getId(),
+            requestMetaContext.getEnvironment().id(),
             requestMetaContext.getServiceName(),
             "test-component");
   }
@@ -236,7 +236,7 @@ class ComponentEnrichmentServiceTest {
   private RequestMetaContext buildTestComponentContext() {
     return RequestMetaContext.builder()
         .serviceName("test-service")
-        .environment(Environment.newBuilder().setId(1L).setName("test-env").build())
+        .environment(EnvironmentEntity.builder().id(1L).name("test-env").build())
         .userDetails(UserDetails.builder().userId("test-user").build())
         .additionalContext(Map.of("OPERATION", "restart"))
         .build();

@@ -9,17 +9,7 @@ CREATE TABLE IF NOT EXISTS auth_provider
   PRIMARY KEY (id),
   UNIQUE (org_id)
 );
-CREATE TABLE IF NOT EXISTS action
-(
-  id                        BIGINT      NOT NULL AUTO_INCREMENT,
-  name                      VARCHAR(50) NOT NULL,
-  created_by                VARCHAR(50)                                                     NOT NULL,
-  created_at                TIMESTAMP DEFAULT CURRENT_TIMESTAMP                             NOT NULL,
-  updated_by                VARCHAR(50)                                                     NOT NULL,
-  updated_at                TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP NOT NULL,
-  PRIMARY KEY (id),
-  UNIQUE KEY actions_name_uindex (name)
-);
+
 CREATE TABLE IF NOT EXISTS environment
 (
   id                        BIGINT                                                          NOT NULL AUTO_INCREMENT,
@@ -33,12 +23,13 @@ CREATE TABLE IF NOT EXISTS environment
   PRIMARY KEY (id),
   INDEX (org_id, name)
 );
+
 CREATE TABLE IF NOT EXISTS environment_account
 (
   id                        BIGINT                                                          NOT NULL AUTO_INCREMENT,
   environment_id            BIGINT                                                          NOT NULL,
   status                    VARCHAR(20)                                                     NOT NULL,
-  action                    VARCHAR(50)                                                     NOT NULL,  accounts_data             JSON                                                            NULL,
+  action                    VARCHAR(50)                                                     NOT NULL,
   account_data             JSON                                                             NULL,
   account_name              VARCHAR(50)                                                     NOT NULL,
   created_by                VARCHAR(50)                                                     NOT NULL,
@@ -47,7 +38,8 @@ CREATE TABLE IF NOT EXISTS environment_account
   updated_at                TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP NOT NULL,
   FOREIGN KEY (environment_id) REFERENCES environment (id),
   PRIMARY KEY (id)
- );
+);
+
 CREATE TABLE IF NOT EXISTS environment_service
 (
   id                        BIGINT                                                          NOT NULL AUTO_INCREMENT,
@@ -65,6 +57,7 @@ CREATE TABLE IF NOT EXISTS environment_service
   INDEX (environment_id, status),
   UNIQUE KEY unique_env_name (environment_id, name)
 );
+
 CREATE TABLE IF NOT EXISTS environment_service_component
 (
   id                        BIGINT                                                          NOT NULL AUTO_INCREMENT,
@@ -84,6 +77,7 @@ CREATE TABLE IF NOT EXISTS environment_service_component
   INDEX service_component_idx(environment_service_id, name),
   UNIQUE KEY (environment_service_id, name)
 );
+
 CREATE TABLE IF NOT EXISTS environment_lock
 (
   id            BIGINT NOT NULL AUTO_INCREMENT,
@@ -98,6 +92,7 @@ CREATE TABLE IF NOT EXISTS environment_lock
   UNIQUE KEY uniq_env_lock (environment_id),
   FOREIGN KEY (environment_id) REFERENCES environment (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
 CREATE TABLE IF NOT EXISTS environment_service_lock
 (
   id                     BIGINT NOT NULL AUTO_INCREMENT,
@@ -114,6 +109,7 @@ CREATE TABLE IF NOT EXISTS environment_service_lock
   FOREIGN KEY (environment_id) REFERENCES environment (id),
   FOREIGN KEY (environment_service_id) REFERENCES environment_service (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
 CREATE TABLE IF NOT EXISTS environment_service_component_lock
 (
   id                               BIGINT NOT NULL AUTO_INCREMENT,
@@ -138,11 +134,11 @@ CREATE TABLE IF NOT EXISTS execution_tasks
   id          BIGINT NOT NULL AUTO_INCREMENT,
   action      VARCHAR(50) NOT NULL,
   org_id      BIGINT NOT NULL,
-  response    JSON NOT NULL DEFAULT (json_object()),
+  response    JSON NOT NULL DEFAULT (JSON_OBJECT()),
   status      VARCHAR(20) NOT NULL,
   entity      VARCHAR(20) NOT NULL,
   execution_id    VARCHAR(255) DEFAULT '' NOT NULL,
-  payload     JSON NOT NULL DEFAULT (json_object()),
+  payload     JSON NOT NULL DEFAULT (JSON_OBJECT()),
   created_by  VARCHAR(50) NOT NULL,
   created_at  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_by  VARCHAR(50) NOT NULL,

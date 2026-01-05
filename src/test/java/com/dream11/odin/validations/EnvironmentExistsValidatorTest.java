@@ -51,7 +51,7 @@ class EnvironmentExistsValidatorTest {
           JsonObject jsonObject = new JsonObject();
           jsonObject.put(ORG_ID_PARAM, 1);
           jsonObject.put(USER_ID_PARAM, 1);
-          when(environmentDao.getEnvironmentByNameAndIsActiveIfExists(orgId, environmentName))
+          when(environmentDao.getEnvironmentWithAccountsIfExists(orgId, environmentName))
               .thenReturn(
                   Maybe.just(
                       Environment.newBuilder()
@@ -94,7 +94,7 @@ class EnvironmentExistsValidatorTest {
           JsonObject jsonObject = new JsonObject();
           jsonObject.put(ORG_ID_PARAM, orgId);
           jsonObject.put(USER_ID_PARAM, userId);
-          when(environmentDao.getEnvironmentByNameAndIsActiveIfExists(orgId, environmentName))
+          when(environmentDao.getEnvironmentWithAccountsIfExists(orgId, environmentName))
               .thenReturn(
                   Maybe.just(
                       Environment.newBuilder()

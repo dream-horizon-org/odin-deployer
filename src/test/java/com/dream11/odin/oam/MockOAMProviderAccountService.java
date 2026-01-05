@@ -1,6 +1,6 @@
 package com.dream11.odin.oam;
 
-import static com.dream11.odin.constant.Constants.EKS_PROVIDER_SERVICE_CATEGORY;
+import static com.dream11.odin.constant.Constants.KUBERNETES_PROVIDER_SERVICE_CATEGORY;
 
 import com.dream11.odin.dto.v1.ProviderAccount;
 import com.dream11.odin.dto.v1.ProviderServiceAccount;
@@ -53,7 +53,7 @@ public class MockOAMProviderAccountService
                       .addServices(
                           ProviderServiceAccount.newBuilder()
                               .setName("EKS")
-                              .setCategory(EKS_PROVIDER_SERVICE_CATEGORY)))
+                              .setCategory(KUBERNETES_PROVIDER_SERVICE_CATEGORY)))
               .build();
     } catch (IOException e) {
       throw new RuntimeException(e);

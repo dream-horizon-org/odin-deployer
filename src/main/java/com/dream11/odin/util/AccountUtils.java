@@ -2,6 +2,7 @@ package com.dream11.odin.util;
 
 import com.dream11.grpc.util.ExceptionUtil;
 import com.dream11.odin.dto.v1.AccountInformation;
+import com.dream11.odin.entity.EnvironmentAccount;
 import com.dream11.odin.error.OdinError;
 import com.dream11.odin.grpc.provideraccount.v1.GetProviderAccountResponse;
 import io.vertx.core.json.JsonObject;
@@ -17,6 +18,17 @@ public class AccountUtils {
     return AccountInformation.newBuilder()
         .setServiceAccountsSnapshot(providerAccountResponse)
         .setProviderAccountName(providerAccountResponse.getAccount().getName())
+        .build();
+  }
+
+  public AccountInformation getAccountInformation(EnvironmentAccount environmentAccount) {
+    return AccountInformation.newBuilder()
+        .setProviderAccountName(environmentAccount.accountName())
+        .setStatus(
+            EnvironmentUtil.getStatus(environmentAccount.action(), environmentAccount.status()))
+        .setServiceAccountsSnapshot(
+            JsonUtil.jsonToProtoBuilder(
+                environmentAccount.accountData(), GetProviderAccountResponse.newBuilder()))
         .build();
   }
 

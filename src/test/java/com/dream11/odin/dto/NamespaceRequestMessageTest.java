@@ -4,13 +4,13 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.dream11.odin.constant.Action;
 import com.dream11.odin.dto.constants.RequestMessageType;
-import com.dream11.odin.dto.request.RequestMessage;
+import com.dream11.odin.dto.request.NamespaceRequestMessage;
 import com.dream11.odin.grpc.provideraccount.v1.GetProviderAccountResponse;
 import com.dream11.odin.oam.MockOAMProviderAccountService;
 import io.vertx.core.json.JsonObject;
 import org.junit.jupiter.api.Test;
 
-class RequestMessageTest {
+class NamespaceRequestMessageTest {
 
   @Test
   void testMessage() {
@@ -23,7 +23,7 @@ class RequestMessageTest {
 
     // Act
     JsonObject request =
-        new RequestMessage(
+        new NamespaceRequestMessage(
                 environmentName,
                 providerAccountResponse,
                 Action.CREATE_ENVIRONMENT,

@@ -5,7 +5,6 @@ import static com.dream11.odin.dao.query.MysqlQuery.GET_EXISTING_COMPONENTS_STAT
 import static com.dream11.odin.dao.query.MysqlQuery.GET_EXISTING_COMPONENTS_TASK_IN_ENV;
 import static com.dream11.odin.dao.query.MysqlQuery.GET_LATEST_COMPONENT_TASKS;
 import static com.dream11.odin.dao.query.MysqlQuery.GET_LATEST_SUCCESSFUL_DEPLOY_OPERATE_COMPONENT_TASK_IN_ENV;
-import static com.dream11.odin.dao.query.MysqlQuery.UPDATE_COMPONENT_TASK_STATUSES;
 import static io.vertx.reactivex.mysqlclient.MySQLClient.LAST_INSERTED_ID;
 
 import com.dream11.odin.client.MysqlClient;
@@ -79,30 +78,6 @@ public class ComponentTaskDao {
                 log.info(
                     "Component task created successfully, componentTaskId: {}",
                     createdComponentTask.getId()))
-        .compose(SingleUtil.applyDebugLogs(log));
-  }
-
-  public Single<ComponentTaskEntity> updateComponentTasks(ComponentTaskEntity componentTaskEntity) {
-
-    Object[] params = {
-      componentTaskEntity.getStatus(),
-      componentTaskEntity.getResponse(),
-      componentTaskEntity.getServiceTaskEntity().getId(),
-      componentTaskEntity.getServiceTaskEntity().getId(),
-      componentTaskEntity.getComponentName(),
-      componentTaskEntity.getAction().getName()
-    };
-
-    return mysqlClient
-        .getMasterClient()
-        .preparedQuery(UPDATE_COMPONENT_TASK_STATUSES)
-        .rxExecute(Tuple.wrap(params))
-        .map(result -> componentTaskEntity)
-        .doOnSuccess(
-            componentTaskEntity1 ->
-                log.info(
-                    "Component task entity {} updated Successfully",
-                    componentTaskEntity1.getServiceTaskEntity().getId()))
         .compose(SingleUtil.applyDebugLogs(log));
   }
 

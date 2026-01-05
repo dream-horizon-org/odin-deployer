@@ -19,6 +19,7 @@ import com.dream11.odin.dto.v1.ComponentDefinition;
 import com.dream11.odin.dto.v1.Environment;
 import com.dream11.odin.dto.v1.RemoveComponentRequestOptions;
 import com.dream11.odin.entity.ComponentTaskEntity;
+import com.dream11.odin.entity.EnvironmentEntity;
 import com.dream11.odin.entity.ServiceTaskEntity;
 import com.dream11.odin.error.OdinError;
 import com.dream11.odin.grpc.service.OperateServiceRequest;
@@ -153,7 +154,7 @@ public abstract class Operation {
     RequestMetaContext.RequestMetaContextBuilder requestMetaContextBuilder =
         RequestMetaContext.builder()
             .serviceName(request.getServiceName())
-            .environment(environment)
+            .environment(EnvironmentEntity.builder().build()) // TODO AKSHAY remove
             .userDetails(userDetails);
 
     // For add component operation, get account data from env task

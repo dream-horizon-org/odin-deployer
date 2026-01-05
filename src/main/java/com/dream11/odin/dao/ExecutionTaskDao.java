@@ -9,6 +9,7 @@ import com.dream11.odin.entity.ExecutionTaskEntity;
 import com.google.inject.Inject;
 import io.reactivex.Completable;
 import io.reactivex.Maybe;
+import io.vertx.core.json.JsonObject;
 import io.vertx.reactivex.sqlclient.Tuple;
 import java.util.List;
 import java.util.Spliterator;
@@ -56,7 +57,7 @@ public class ExecutionTaskDao {
       String status,
       String entity,
       String executionId,
-      String payload,
+      JsonObject payload,
       String createdBy) {
 
     Object[] params = {action, orgId, status, entity, executionId, payload, createdBy, createdBy};

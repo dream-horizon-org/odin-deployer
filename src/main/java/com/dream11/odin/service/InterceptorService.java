@@ -115,7 +115,7 @@ public class InterceptorService {
                     EnvironmentContext.builder()
                         .name(
                             requestMetaContext.getEnvironment() != null
-                                ? requestMetaContext.getEnvironment().getName()
+                                ? requestMetaContext.getEnvironment().name()
                                 : null)
                         .build())
                 .stage(StageContext.builder().name(stageName).config(additionalContext).build())

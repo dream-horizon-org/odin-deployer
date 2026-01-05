@@ -15,9 +15,7 @@ public class ServiceStatusValidatorForUndeploy extends Validator {
 
   private final ServiceComponentDao serviceComponentDao;
   private final String serviceName;
-  private final String envName;
-
-  private final Long orgId;
+  private final long envId;
 
   // if service is in deploy success or failed, or operate success or failed, or undeploy failed, it
   // should be eligible for undeploy
@@ -25,7 +23,7 @@ public class ServiceStatusValidatorForUndeploy extends Validator {
   @Override
   public Completable validate() {
     return serviceComponentDao
-        .getServiceComponentStateInEnv(orgId, envName, serviceName)
+        .getEnvironmentServiceWithComponents(envId, serviceName)
         .map(
             environmentServiceEntityWithComponents -> {
               if (validateServiceTaskStatusForUndeploy(environmentServiceEntityWithComponents)) {

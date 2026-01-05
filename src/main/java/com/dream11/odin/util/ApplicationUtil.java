@@ -3,10 +3,16 @@ package com.dream11.odin.util;
 import com.google.protobuf.Struct;
 import com.google.protobuf.util.JsonFormat;
 import io.vertx.core.json.JsonObject;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolationException;
+import jakarta.validation.Validation;
+import jakarta.validation.Validator;
+import jakarta.validation.ValidatorFactory;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.util.Base64;
 import java.util.List;
+import java.util.Set;
 import java.util.zip.CRC32;
 import java.util.zip.Deflater;
 import lombok.SneakyThrows;
@@ -67,5 +73,15 @@ public class ApplicationUtil {
       code = (code + 1) % 230;
     }
     return "\u001B[38;5;%dm".formatted(code);
+  }
+
+  public <T> void validate(T object) {
+    try (ValidatorFactory factory = Validation.buildDefaultValidatorFactory()) {
+      Validator validator = factory.getValidator();
+      Set<ConstraintViolation<T>> constraintViolations = validator.validate(object);
+      if (!constraintViolations.isEmpty()) {
+        throw new ConstraintViolationException(constraintViolations);
+      }
+    }
   }
 }
