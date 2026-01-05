@@ -7,19 +7,6 @@ import "google/protobuf/timestamp.proto";
 option java_multiple_files = true;
 option java_package = "com.dream11.odin.dto.v1";
 
-message Flavour {
-  optional string name = 1;
-  optional google.protobuf.Struct schema = 2;
-  optional google.protobuf.Struct defaults = 3;
-  repeated Operation operations = 4;
-}
-
-message Operation {
-  optional string name = 1;
-  optional google.protobuf.Struct schema = 2;
-  optional google.protobuf.Struct defaults = 3;
-}
-
 message Component {
     string name = 1;
     string version = 2;
